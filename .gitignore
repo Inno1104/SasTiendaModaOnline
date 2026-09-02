@@ -1,0 +1,57 @@
+# Entorno y secretos
+/.env
+/.env.*
+!/.env.example
+!/.env.production.example
+/auth.json
+
+# Dependencias y artefactos compilados
+/vendor/
+/node_modules/
+/public/build/
+/public/hot
+
+# Archivos publicados y subidos en cada entorno
+/public/storage
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/storage/*.key
+
+# Cachés, sesiones y logs de Laravel
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+/.phpunit.cache/
+/.phpunit.result.cache
+
+# Configuración local de editores y herramientas
+/.history/
+/.idea/
+/.vscode/
+/.fleet/
+/.DS_Store
+Thumbs.db
+
+# Respaldos, credenciales y archivos temporales locales
+/bk_basededatos.sql
+/Credenciales del Sistema.txt
+*.sql.gz
+*.bak
+*.tmp
+*.log
+/2026-06-06_07h20_30.png
+
+# Copia completa duplicada detectada dentro del proyecto
+/saas_tienda_moda/
+
+# Logs de gestores de paquetes
+/npm-debug.log
+/yarn-error.log
+/pnpm-debug.log

@@ -1,0 +1,29 @@
+.sales-alert{display:flex;align-items:center;gap:9px;margin-bottom:16px;padding:12px 15px;border:1px solid #fecdd3;border-radius:11px;background:#fff1f2;color:#be123c;font-size:12px}.direct-customer{color:var(--text-muted);font-style:italic}.sales-filters-card{margin-bottom:20px}.sales-filters{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:12px;align-items:end}.sales-filters label>span{display:block;margin-bottom:5px;color:var(--text-muted);font-size:10px;font-weight:700}.sales-search{grid-column:span 2}.sales-search>div{position:relative}.sales-search i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8}.sales-search input{padding-left:34px}.sales-filter-actions{display:flex;gap:7px;grid-column:span 2;justify-content:flex-end}.cancel-sale-dialog{width:min(460px,calc(100% - 30px));padding:25px;border:0;border-radius:17px;box-shadow:0 24px 70px rgba(15,23,42,.35)}.cancel-sale-dialog::backdrop{background:rgba(15,23,42,.68);backdrop-filter:blur(3px)}.cancel-dialog-icon{display:grid;place-items:center;width:48px;height:48px;margin:0 auto;border-radius:50%;background:#fff1f2;color:#e11d48;font-size:20px}.cancel-sale-dialog h2{margin:11px 0 5px;text-align:center;color:var(--text-dark)}.cancel-sale-dialog p{margin:0 0 17px;color:var(--text-muted);font-size:12px;line-height:1.6;text-align:center}.cancel-sale-dialog label{display:block;margin-bottom:5px;color:var(--text-dark);font-size:11px;font-weight:700}.cancel-sale-dialog textarea{width:100%;resize:vertical;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:12px;outline:none}.cancel-sale-dialog textarea:focus{border-color:#fb7185;box-shadow:0 0 0 3px rgba(244,63,94,.1)}.cancel-sale-dialog small{display:block;margin-top:4px;color:var(--text-muted);font-size:9px;text-align:right}.cancel-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}@media(max-width:1000px){.sales-filters{grid-template-columns:repeat(2,minmax(140px,1fr))}}@media(max-width:600px){.sales-filters{grid-template-columns:1fr}.sales-search,.sales-filter-actions{grid-column:auto}.sales-filter-actions{justify-content:stretch}.sales-filter-actions .btn{flex:1}}@media(max-width:520px){.cancel-dialog-actions{flex-direction:column-reverse}.cancel-dialog-actions .btn{width:100%}}
+
+/* Filtros del historial en una única línea, con desplazamiento seguro. */
+.sales-filters-card {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-color: #e7aac5 transparent;
+    scrollbar-width: thin;
+}
+
+.sales-filters {
+    grid-template-columns: minmax(300px, 2fr) repeat(7, minmax(135px, 1fr)) auto;
+    min-width: 1720px;
+    align-items: end;
+}
+
+.sales-search,
+.sales-filter-actions {
+    grid-column: auto;
+}
+
+.sales-filter-actions {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.sales-filter-actions .btn {
+    flex: 0 0 auto;
+}

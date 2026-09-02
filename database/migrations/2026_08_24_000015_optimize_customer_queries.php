@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('clientes', function (Blueprint $table) {
+            $table->index(['tienda_id', 'ciudad', 'activo'], 'clientes_segmento_ciudad_estado');
+            $table->index(['tienda_id', 'created_at'], 'clientes_registro_tienda_fecha');
+        });
+
+        Schema::table('ventas', function (Blueprint $table) {
+            $table->index(['tienda_id', 'cliente_id', 'estado', 'created_at'], 'ventas_cliente_estado_fecha');
+            $table->index(['tienda_id', 'cliente_id', 'id'], 'ventas_cliente_historial');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('clientes', function (Blueprint $table) {
+            $table->dropIndex('clientes_segmento_ciudad_estado');
+            $table->dropIndex('clientes_registro_tienda_fecha');
+        });
+
+        Schema::table('ventas', function (Blueprint $table) {
+            $table->dropIndex('ventas_cliente_estado_fecha');
+            $table->dropIndex('ventas_cliente_historial');
+        });
+    }
+};

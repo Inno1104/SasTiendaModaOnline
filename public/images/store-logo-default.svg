@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" role="img" aria-labelledby="title">
+  <title id="title">Logo predeterminado de tienda</title>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ec4899"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+  <rect width="500" height="500" rx="110" fill="#fff1f7"/>
+  <path fill="url(#g)" d="M132 180 205 130c13 25 77 25 90 0l73 50-43 72-40-23v142c0 17-14 30-30 30h-10c-17 0-30-13-30-30V229l-40 23-43-72Z"/>
+</svg>

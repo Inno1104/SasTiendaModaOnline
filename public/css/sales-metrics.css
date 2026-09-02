@@ -1,0 +1,84 @@
+.sales-metrics {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 5px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-color: #e7aac5 transparent;
+    scrollbar-width: thin;
+}
+
+.sales-metric {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, .04);
+}
+
+.sales-metric > span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #fdf2f8;
+    color: var(--accent);
+}
+
+.sales-metric div { min-width: 0; }
+
+.sales-metric small,
+.sales-metric em {
+    display: block;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 8px;
+    font-style: normal;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.sales-metric small {
+    font-weight: 750;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.sales-metric strong {
+    display: block;
+    overflow: hidden;
+    margin: 2px 0;
+    color: var(--text-dark);
+    font-size: 15px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.metric-completed > span { background: #ecfdf5; color: #059669; }
+.metric-cancelled > span { background: #fff1f2; color: #e11d48; }
+.metric-income > span { background: #f0fdf4; color: #16a34a; }
+.metric-ticket > span { background: #f5f3ff; color: #7c3aed; }
+.metric-discount > span { background: #fff7ed; color: #ea580c; }
+.metric-tax > span { background: #eff6ff; color: #2563eb; }
+
+@media (max-width: 900px) {
+    .sales-metrics {
+        grid-template-columns: repeat(8, minmax(165px, 1fr));
+        scroll-snap-type: inline proximity;
+    }
+
+    .sales-metric { scroll-snap-align: start; }
+}
+
+@media (max-width: 480px) {
+    .sales-metric { padding: 11px; }
+    .sales-metric strong { font-size: 13px; }
+}
