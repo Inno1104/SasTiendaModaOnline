@@ -61,10 +61,14 @@ class ProductoController extends Controller
     public function store(StoreProductoRequest $request, ProductoManager $manager)
     {
         try {
+            $gallery = collect($request->file('imagenes', []))->map(function ($item, $index) use ($request) {
+                return ['archivo' => $item['archivo'] ?? null, 'talla' => $request->input("imagenes.$index.talla"), 'color' => $request->input("imagenes.$index.color")];
+            })->filter(fn ($item) => $item['archivo'])->values()->all();
             $manager->create(
-                $request->safe()->except('imagen'),
+                $request->safe()->except(['imagen', 'imagenes']),
                 $request->user(),
-                $request->file('imagen')
+                $request->file('imagen'),
+                $gallery
             );
         } catch (ProductPlanLimitReached $exception) {
             return back()->withInput()->with('error', $exception->getMessage());
@@ -93,7 +97,7 @@ class ProductoController extends Controller
                 ->orWhere('id', $producto->proveedor_id))
             ->orderBy('nombre')
             ->get();
-        $producto->load('variantes');
+        $producto->load('variantes', 'imagenes');
 
         return view('productos.edit', compact('producto', 'categorias', 'marcas', 'proveedores'));
     }
@@ -101,11 +105,23 @@ class ProductoController extends Controller
     public function update(UpdateProductoRequest $request, Producto $producto, ProductoManager $manager)
     {
         try {
+            $gallery = collect($request->file('imagenes', []))->map(function ($item, $index) use ($request) {
+                return ['archivo' => $item['archivo'] ?? null, 'talla' => $request->input("imagenes.$index.talla"), 'color' => $request->input("imagenes.$index.color")];
+            })->filter(fn ($item) => $item['archivo'])->values()->all();
+            $existingImages = collect((array) $request->input('imagenes_existentes', []))->map(function ($item, $index) use ($request) {
+                return [
+                    'id' => (int) ($item['id'] ?? 0),
+                    'eliminar' => (bool) ($item['eliminar'] ?? false),
+                    'archivo' => $request->file("imagenes_existentes.$index.archivo"),
+                ];
+            })->values()->all();
             $manager->update(
                 $producto,
-                $request->safe()->except('imagen'),
+                $request->safe()->except(['imagen', 'imagenes', 'imagenes_existentes']),
                 $request->user(),
-                $request->file('imagen')
+                $request->file('imagen'),
+                $gallery,
+                $existingImages
             );
         } catch (ProductPlanLimitReached $exception) {
             return back()->withInput()->with('error', $exception->getMessage());

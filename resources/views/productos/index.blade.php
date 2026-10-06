@@ -123,7 +123,7 @@
                             @endcan
                             @if($p->activo)
                                 @can('delete', $p)
-                                    <form method="POST" action="{{ route('productos.destroy',$p) }}" style="display:inline;" onsubmit="return confirm('¿Desactivar este producto?')">
+                                    <form method="POST" action="{{ route('productos.destroy',$p) }}" style="display:inline;" data-confirm-message="¿Desactivar este producto?">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger" title="Desactivar"><i class="fa-solid fa-ban"></i></button>
                                     </form>

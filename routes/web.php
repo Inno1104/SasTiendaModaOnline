@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BankTransferController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
@@ -11,10 +12,14 @@ use App\Http\Controllers\GuestCheckoutController;
 use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\MovimientoCajaController;
 use App\Http\Controllers\OnlineOrderController;
+use App\Http\Controllers\PedidoOnlineController;
 use App\Http\Controllers\PosCatalogController;
 use App\Http\Controllers\PosClienteController;
 use App\Http\Controllers\PublicCartController;
+use App\Http\Controllers\PublicCustomerLookupController;
 use App\Http\Controllers\PublicStoreController;
+use App\Http\Controllers\PublicOrderTrackingController;
+use App\Http\Controllers\PublicOrderLookupController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\PurchaseCatalogController;
@@ -84,7 +89,11 @@ Route::post('/registro', [RegistroController::class, 'store'])->name('registro.s
 Route::get('/tienda/{slug}', [PublicStoreController::class, 'show'])
     ->where('slug', '[A-Za-z0-9-]+')
     ->name('storefront.show');
+Route::get('/tienda/{slug}/producto/{code}', [PublicStoreController::class, 'product'])
+    ->where(['slug' => '[A-Za-z0-9-]+', 'code' => '[A-Za-z0-9-]+'])
+    ->name('storefront.product.show');
 Route::prefix('/tienda/{slug}/carrito')->where(['slug' => '[A-Za-z0-9-]+'])->group(function () {
+    Route::get('/', [PublicCartController::class, 'show'])->name('storefront.cart.show');
     Route::post('/', [PublicCartController::class, 'store'])->name('storefront.cart.store');
     Route::patch('/{variant}', [PublicCartController::class, 'update'])->whereNumber('variant')->name('storefront.cart.update');
     Route::delete('/{variant}', [PublicCartController::class, 'destroy'])->whereNumber('variant')->name('storefront.cart.destroy');
@@ -93,9 +102,33 @@ Route::prefix('/tienda/{slug}/carrito')->where(['slug' => '[A-Za-z0-9-]+'])->gro
 Route::post('/tienda/{slug}/checkout/datos', [GuestCheckoutController::class, 'store'])
     ->where('slug', '[A-Za-z0-9-]+')
     ->name('storefront.checkout.data.store');
+Route::post('/tienda/{slug}/clientes/buscar-dni', PublicCustomerLookupController::class)
+    ->where('slug', '[A-Za-z0-9-]+')
+    ->middleware('throttle:20,1')
+    ->name('storefront.customers.lookup');
 Route::post('/tienda/{slug}/pedidos', [OnlineOrderController::class, 'store'])
     ->where('slug', '[A-Za-z0-9-]+')
     ->name('storefront.orders.store');
+Route::get('/tienda/{slug}/mi-pedido', [PublicOrderLookupController::class, 'show'])->where('slug', '[A-Za-z0-9-]+')->name('storefront.orders.lookup');
+Route::post('/tienda/{slug}/mi-pedido', [PublicOrderLookupController::class, 'store'])->where('slug', '[A-Za-z0-9-]+')->middleware('throttle:10,1')->name('storefront.orders.lookup.store');
+Route::get('/tienda/{slug}/pago/transferencia/{operation}', [BankTransferController::class, 'show'])->whereUuid('operation')->name('storefront.transfer.show');
+Route::post('/tienda/{slug}/pago/transferencia/{operation}', [BankTransferController::class, 'store'])->whereUuid('operation')->middleware('throttle:10,1')->name('storefront.transfer.store');
+Route::get('/tienda/{slug}/pedido/{operation}/seguimiento', PublicOrderTrackingController::class)
+    ->where(['slug' => '[A-Za-z0-9-]+', 'operation' => '[0-9a-fA-F-]{36}'])
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('storefront.orders.tracking');
+Route::post('/tienda/{slug}/pedido/{operation}/calificacion', [PublicOrderTrackingController::class, 'rate'])
+    ->where(['slug' => '[A-Za-z0-9-]+', 'operation' => '[0-9a-fA-F-]{36}'])
+    ->middleware(['signed', 'throttle:5,1'])
+    ->name('storefront.orders.rate');
+Route::get('/tienda/{slug}/pedido/{operation}/guia-envio', [PublicOrderTrackingController::class, 'shippingGuide'])
+    ->where(['slug' => '[A-Za-z0-9-]+', 'operation' => '[0-9a-fA-F-]{36}'])
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('storefront.orders.shipping-guide');
+Route::get('/tienda/{slug}/pedido/{operation}/comprobante-venta', [PublicOrderTrackingController::class, 'saleReceipt'])
+    ->where(['slug' => '[A-Za-z0-9-]+', 'operation' => '[0-9a-fA-F-]{36}'])
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('storefront.orders.sale-receipt');
 
 // Panel Super-Admin (dueño de la plataforma)
 Route::middleware(['auth', 'superadmin'])->prefix('admin')->group(function () {
@@ -120,6 +153,14 @@ Route::middleware(['auth', 'superadmin'])->prefix('admin')->group(function () {
 Route::middleware(['auth', 'tienda'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/pedidos-online', [PedidoOnlineController::class, 'index'])->name('pedidos-online.index');
+    Route::get('/pedidos-online/{pedido}', [PedidoOnlineController::class, 'show'])->whereNumber('pedido')->name('pedidos-online.show');
+    Route::get('/pedidos-online/{pedido}/comprobante', [PedidoOnlineController::class, 'receipt'])->whereNumber('pedido')->name('pedidos-online.receipt');
+    Route::post('/pedidos-online/{pedido}/verificar-pago', [PedidoOnlineController::class, 'verify'])->whereNumber('pedido')->name('pedidos-online.verify');
+    Route::post('/pedidos-online/{pedido}/enviar-comprobante', [PedidoOnlineController::class, 'sendReceipt'])->whereNumber('pedido')->name('pedidos-online.send-receipt');
+    Route::post('/pedidos-online/{pedido}/cancelar', [PedidoOnlineController::class, 'cancel'])->whereNumber('pedido')->name('pedidos-online.cancel');
+    Route::patch('/pedidos-online/{pedido}/estado', [PedidoOnlineController::class, 'updateStatus'])->whereNumber('pedido')->name('pedidos-online.status');
 
     // Productos
     Route::resource('productos', ProductoController::class);

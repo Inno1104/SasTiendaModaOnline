@@ -5,12 +5,40 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AddPublicCartItemRequest;
 use App\Http\Requests\UpdatePublicCartItemRequest;
 use App\Models\Tienda;
+use App\Models\EcuadorUbicacion;
 use App\Services\PublicCartManager;
+use App\Services\PublicCatalogQuery;
+use App\Services\GuestCheckoutManager;
+use App\Support\StorefrontConfiguration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 final class PublicCartController extends Controller
 {
+    public function show(
+        Request $request,
+        PublicCartManager $cart,
+        PublicCatalogQuery $catalog,
+        GuestCheckoutManager $checkout,
+        string $slug,
+    ) {
+        $store = $this->publishedStore($slug);
+
+        return view('storefront.show', $catalog->execute($store, []) + [
+            'store' => $store,
+            'contact' => $store->publicContactData(),
+            'filters' => [],
+            'cart' => $cart->snapshot($store, $request->session()),
+            'checkout' => $checkout->snapshot($store, $request->session()),
+            'orderOperationId' => $checkout->orderOperationId($store, $request->session()),
+            'countries' => \App\Support\StoreLocation::COUNTRIES,
+            'ecuadorLocations' => EcuadorUbicacion::catalogo(),
+            'days' => StorefrontConfiguration::DAYS,
+            'conditionLabels' => StorefrontConfiguration::CONDITION_FIELDS,
+            'cartOnly' => true,
+        ]);
+    }
+
     public function store(
         AddPublicCartItemRequest $request,
         PublicCartManager $cart,
@@ -24,7 +52,8 @@ final class PublicCartController extends Controller
             (int) $request->validated('cantidad'),
         );
 
-        return redirect($store->publicUrl().'#carrito')->with('cart_success', 'Producto agregado al carrito.');
+        return redirect()->back(fallback: $store->publicUrl().'#catalogo')
+            ->with('cart_success', 'Producto agregado al carrito.');
     }
 
     public function update(
@@ -34,9 +63,14 @@ final class PublicCartController extends Controller
         int $variant,
     ): RedirectResponse {
         $store = $this->publishedStore($slug);
-        $cart->update($store, $request->session(), $variant, (int) $request->validated('cantidad'));
+        $newVariantId = $request->validated('nueva_variante_id');
+        if ($newVariantId) {
+            $cart->replace($store, $request->session(), $variant, (int) $newVariantId, (int) $request->validated('cantidad'));
+        } else {
+            $cart->update($store, $request->session(), $variant, (int) $request->validated('cantidad'));
+        }
 
-        return redirect($store->publicUrl().'#carrito')->with('cart_success', 'Cantidad actualizada.');
+        return redirect()->route('storefront.cart.show', $store->slug)->with('cart_success', 'Producto actualizado.');
     }
 
     public function destroy(Request $request, PublicCartManager $cart, string $slug, int $variant): RedirectResponse
@@ -44,7 +78,7 @@ final class PublicCartController extends Controller
         $store = $this->publishedStore($slug);
         $cart->remove($store, $request->session(), $variant);
 
-        return redirect($store->publicUrl().'#carrito')->with('cart_success', 'Producto eliminado del carrito.');
+        return redirect()->route('storefront.cart.show', $store->slug)->with('cart_success', 'Producto eliminado del carrito.');
     }
 
     public function clear(Request $request, PublicCartManager $cart, string $slug): RedirectResponse
@@ -52,7 +86,7 @@ final class PublicCartController extends Controller
         $store = $this->publishedStore($slug);
         $cart->clear($store, $request->session());
 
-        return redirect($store->publicUrl().'#carrito')->with('cart_success', 'Carrito vaciado.');
+        return redirect()->route('storefront.cart.show', $store->slug)->with('cart_success', 'Carrito vaciado.');
     }
 
     private function publishedStore(string $slug): Tienda

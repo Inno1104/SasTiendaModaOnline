@@ -9,6 +9,7 @@ use App\Models\Compra;
 use App\Models\DetalleVenta;
 use App\Models\Marca;
 use App\Models\PagoVenta;
+use App\Models\PedidoOnline;
 use App\Models\Producto;
 use App\Models\ProductoVariante;
 use App\Models\Proveedor;
@@ -16,6 +17,7 @@ use App\Models\Tienda;
 use App\Models\User;
 use App\Models\Venta;
 use App\Observers\DashboardCacheObserver;
+use App\Support\OnlineOrderStatus;
 use App\Policies\CajaPolicy;
 use App\Policies\ClientePolicy;
 use App\Policies\CompraPolicy;
@@ -57,6 +59,26 @@ class AppServiceProvider extends ServiceProvider
             $tienda = auth()->check() ? auth()->user()->tienda : null;
             $view->with('codigoMoneda', $tienda?->moneda ?: 'USD');
             $view->with('simboloMoneda', $tienda?->simbolo_moneda ?: '$');
+        });
+
+        View::composer('layouts.app', function ($view): void {
+            $user = auth()->user();
+            if (! $user?->tienda_id) {
+                $view->with('orderNotifications', collect());
+                $view->with('orderNotificationCount', 0);
+                return;
+            }
+
+            $query = PedidoOnline::withoutGlobalScopes()
+                ->where('tienda_id', $user->tienda_id)
+                ->where('estado', OnlineOrderStatus::AWAITING_PAYMENT)
+                ->whereNotNull('pago_reportado_at');
+
+            $view->with('orderNotificationCount', (clone $query)->count());
+            $view->with('orderNotifications', $query
+                ->latest('pago_reportado_at')
+                ->limit(5)
+                ->get(['id', 'numero', 'cliente_nombre', 'cliente_apellido', 'total', 'simbolo_moneda', 'pago_reportado_at']));
         });
     }
 }

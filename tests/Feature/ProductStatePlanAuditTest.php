@@ -6,7 +6,10 @@ use App\Models\Auditoria;
 use App\Models\Categoria;
 use App\Models\Plan;
 use App\Models\Producto;
+use App\Models\ProductoImagen;
+use App\Models\ProductoVariante;
 use App\Models\Rol;
+use App\Models\StockMovimiento;
 use App\Models\Tienda;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -143,6 +146,159 @@ class ProductStatePlanAuditTest extends TestCase
         $this->delete(route('productos.destroy', $product->fresh()))->assertSessionHas('success');
 
         $this->assertSame(1, Auditoria::where('accion', 'producto.desactivado')->count());
+    }
+
+    public function test_existing_product_accepts_a_new_size_color_variant_and_records_initial_stock(): void
+    {
+        [$administrator, $store] = $this->context(10);
+        $category = $this->category($store);
+        $product = $this->product($store, $category, true);
+        ProductoVariante::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'producto_id' => $product->id,
+            'talla' => 'M',
+            'color' => 'Negro',
+            'stock' => 4,
+            'stock_minimo' => 2,
+        ]);
+
+        $this->actingAs($administrator)
+            ->put(route('productos.update', $product), $this->payload($category, [
+                'nombre' => $product->nombre,
+                'variantes' => [[
+                    'talla' => 'L',
+                    'color' => 'Azul',
+                    'codigo_barra' => 'NUEVA-L-AZUL',
+                    'stock' => 8,
+                    'stock_minimo' => 3,
+                ]],
+            ]))
+            ->assertSessionHas('success');
+
+        $variant = ProductoVariante::withoutGlobalScopes()
+            ->where('producto_id', $product->id)
+            ->where('talla', 'L')
+            ->where('color', 'Azul')
+            ->sole();
+        $movement = StockMovimiento::withoutGlobalScopes()->where('variante_id', $variant->id)->sole();
+
+        $this->assertSame(8, $movement->cantidad);
+        $this->assertSame(8, $movement->stock_resultante);
+        $this->assertDatabaseHas('auditorias', [
+            'accion' => 'producto.variantes_agregadas',
+            'auditable_id' => $product->id,
+            'user_id' => $administrator->id,
+        ]);
+    }
+
+    public function test_existing_product_rejects_a_duplicate_size_color_variant(): void
+    {
+        [$administrator, $store] = $this->context(10);
+        $category = $this->category($store);
+        $product = $this->product($store, $category, true);
+        ProductoVariante::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'producto_id' => $product->id,
+            'talla' => 'M',
+            'color' => 'Negro',
+            'stock' => 4,
+            'stock_minimo' => 2,
+        ]);
+
+        $this->actingAs($administrator)
+            ->put(route('productos.update', $product), $this->payload($category, [
+                'nombre' => $product->nombre,
+                'variantes' => [[
+                    'talla' => 'm',
+                    'color' => 'negro',
+                    'codigo_barra' => '',
+                    'stock' => 3,
+                    'stock_minimo' => 1,
+                ]],
+            ]))
+            ->assertSessionHasErrors('variantes.0.talla');
+
+        $this->assertSame(1, ProductoVariante::withoutGlobalScopes()->where('producto_id', $product->id)->count());
+        $this->assertDatabaseCount('stock_movimientos', 0);
+    }
+
+    public function test_existing_variant_metadata_can_be_edited_without_changing_stock_and_updates_images(): void
+    {
+        [$administrator, $store] = $this->context(10);
+        $category = $this->category($store);
+        $product = $this->product($store, $category, true);
+        $variant = ProductoVariante::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'producto_id' => $product->id,
+            'talla' => 'M',
+            'color' => 'Beige',
+            'codigo_barra' => 'ANTIGUO-M',
+            'stock' => 10,
+            'stock_minimo' => 2,
+        ]);
+        $image = ProductoImagen::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'producto_id' => $product->id,
+            'ruta' => 'productos/'.$store->id.'/beige.webp',
+            'talla' => 'M',
+            'color' => 'Beige',
+            'orden' => 0,
+            'principal' => true,
+        ]);
+
+        $this->actingAs($administrator)->put(route('productos.update', $product), $this->payload($category, [
+            'nombre' => $product->nombre,
+            'variantes_existentes' => [[
+                'id' => $variant->id,
+                'talla' => 'L',
+                'detalle_talla' => 'Pecho 92-96 cm; cintura 78-82 cm',
+                'color' => 'Arena',
+                'codigo_barra' => 'ARENA-L',
+                'stock_minimo' => 4,
+            ]],
+        ]))->assertSessionHas('success');
+
+        $variant->refresh();
+        $image->refresh();
+        $this->assertSame('L', $variant->talla);
+        $this->assertSame('Pecho 92-96 cm; cintura 78-82 cm', $variant->detalle_talla);
+        $this->assertSame('Arena', $variant->color);
+        $this->assertSame('ARENA-L', $variant->codigo_barra);
+        $this->assertSame(4, $variant->stock_minimo);
+        $this->assertSame(10, $variant->stock);
+        $this->assertSame('L', $image->talla);
+        $this->assertSame('Arena', $image->color);
+        $this->assertDatabaseHas('auditorias', ['accion' => 'producto.variantes_actualizadas', 'auditable_id' => $product->id]);
+    }
+
+    public function test_existing_variant_stock_and_prices_are_updated_with_kardex_reason(): void
+    {
+        [$administrator, $store] = $this->context(10);
+        $category = $this->category($store);
+        $product = $this->product($store, $category, true);
+        $variant = ProductoVariante::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id, 'producto_id' => $product->id,
+            'talla' => 'M', 'color' => 'Negro', 'stock' => 10, 'stock_minimo' => 2,
+        ]);
+
+        $this->actingAs($administrator)->put(route('productos.update', $product), $this->payload($category, [
+            'nombre' => $product->nombre,
+            'variantes_existentes' => [[
+                'id' => $variant->id, 'talla' => 'M', 'color' => 'Negro', 'codigo_barra' => '',
+                'precio_compra' => '12.50', 'precio_venta' => '30.00', 'precio_oferta' => '25.00',
+                'stock' => 16, 'stock_minimo' => 4, 'motivo_stock' => 'Conteo físico confirmado',
+            ]],
+        ]))->assertSessionHas('success');
+
+        $variant->refresh();
+        $this->assertSame(16, $variant->stock);
+        $this->assertSame('12.50', $variant->precio_compra);
+        $this->assertSame('30.00', $variant->precio_venta);
+        $this->assertSame('25.00', $variant->precio_oferta);
+        $this->assertDatabaseHas('stock_movimientos', [
+            'variante_id' => $variant->id, 'tipo' => 'ajuste', 'stock_anterior' => 10,
+            'stock_resultante' => 16, 'motivo' => 'Conteo físico confirmado',
+        ]);
     }
 
     private function payload(Categoria $category, array $overrides = []): array

@@ -9,6 +9,7 @@ use App\Models\ProductoVariante;
 use App\Models\Tienda;
 use App\Support\OnlineOrderStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,8 +21,8 @@ final class OnlineOrderCreator
     ) {}
 
     /**
-     * @param array{items:\Illuminate\Support\Collection,units:int,subtotal:float,adjusted:bool} $cart
-     * @param array<string,mixed> $checkout
+     * @param  array{items:Collection,units:int,subtotal:float,adjusted:bool}  $cart
+     * @param  array<string,mixed>  $checkout
      */
     public function create(Tienda $store, array $cart, array $checkout, string $operationId): PedidoOnline
     {
@@ -63,7 +64,7 @@ final class OnlineOrderCreator
                     ]);
                 }
 
-                $unitPrice = round($variant->producto->precioActual(), 2);
+                $unitPrice = round($variant->precioActual(), 2);
 
                 return [
                     'product_id' => (int) $variant->producto->id,
@@ -92,12 +93,14 @@ final class OnlineOrderCreator
                 'operacion_id' => $operationId,
                 'operacion_hash' => $operationHash,
                 'numero' => $this->numbers->next($lockedStore, (int) now()->year),
-                'estado' => OnlineOrderStatus::AWAITING_PAYMENT,
+                'estado' => OnlineOrderStatus::PENDING,
                 'cliente_nombre' => data_get($checkout, 'cliente.nombre'),
                 'cliente_apellido' => data_get($checkout, 'cliente.apellido'),
+                'cliente_dni' => data_get($checkout, 'cliente.dni'),
                 'cliente_email' => data_get($checkout, 'cliente.email'),
                 'cliente_telefono' => data_get($checkout, 'cliente.telefono'),
                 'requiere_factura' => (bool) data_get($checkout, 'fiscal.requiere_factura'),
+                'tipo_comprobante' => data_get($checkout, 'fiscal.tipo_comprobante', 'boleta'),
                 'tipo_identificacion' => data_get($checkout, 'fiscal.tipo_identificacion'),
                 'identificacion' => data_get($checkout, 'fiscal.identificacion'),
                 'razon_social' => data_get($checkout, 'fiscal.razon_social'),
@@ -174,10 +177,6 @@ final class OnlineOrderCreator
             'direccion' => $delivery['direccion'],
             'referencia' => $delivery['referencia'],
         ]);
-
-        if (! $order->requiere_factura) {
-            return;
-        }
 
         PedidoOnlineDireccion::withoutGlobalScopes()->create([
             'tienda_id' => $order->tienda_id,

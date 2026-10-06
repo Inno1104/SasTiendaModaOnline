@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingForm = null;
 
     document.querySelectorAll('[data-brand-delete]').forEach((form) => {
-        form.addEventListener('submit', (event) => {
+        form.addEventListener('submit', async (event) => {
             event.preventDefault();
             pendingForm = form;
             const products = Number(form.dataset.products || 0);
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmButton.disabled = hasDependencies;
 
             if (typeof dialog.showModal === 'function') dialog.showModal();
-            else if (!hasDependencies && window.confirm(message.textContent)) form.submit();
+            else if (!hasDependencies && await window.appConfirm(message.textContent)) form.submit();
         });
     });
 

@@ -50,11 +50,12 @@
             <div class="card-header"><div class="card-title">Stock por Variante</div></div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Talla</th><th>Color</th><th>Stock</th><th>Stock Mín.</th><th>Estado</th></tr></thead>
+                    <thead><tr><th>Talla</th><th>Detalle de talla</th><th>Color</th><th>Stock</th><th>Stock Mín.</th><th>Estado</th></tr></thead>
                     <tbody>
                         @forelse($producto->variantes as $v)
                         <tr>
                             <td><span class="badge badge-info">{{ $v->talla }}</span></td>
+                            <td>{{ $v->detalle_talla ?: '—' }}</td>
                             <td>{{ $v->color }}</td>
                             <td><strong>{{ $v->stock }}</strong></td>
                             <td>{{ $v->stock_minimo }}</td>
@@ -63,7 +64,7 @@
                             </span></td>
                         </tr>
                         @empty
-                        <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Sin variantes registradas</td></tr>
+                        <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Sin variantes registradas</td></tr>
                         @endforelse
                     </tbody>
                 </table>

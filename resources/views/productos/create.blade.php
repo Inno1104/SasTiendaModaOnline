@@ -1,11 +1,11 @@
 @extends('layouts.app')
 @section('title', 'Nuevo Producto')
 @section('page-title', 'Nuevo Producto')
-@push('styles')<link rel="stylesheet" href="{{ asset('css/product-form.css') }}">@endpush
+@push('styles')<link rel="stylesheet" href="{{ asset('css/product-form.css') }}"><link rel="stylesheet" href="{{ asset('css/product-size-detail.css') }}">@endpush
 
 @section('content')
 @php
-    $oldVariants = old('variantes', [['talla' => '', 'color' => '', 'codigo_barra' => '', 'stock' => 0, 'stock_minimo' => 5]]);
+    $oldVariants = old('variantes', [['talla' => '', 'detalle_talla' => '', 'color' => '', 'codigo_barra' => '', 'stock' => 0, 'stock_minimo' => 5]]);
 @endphp
 <div class="page-header product-page-header">
     <div><h1>Nuevo producto</h1><div class="breadcrumb"><a href="{{ route('dashboard') }}">Inicio</a><span>›</span><a href="{{ route('productos.index') }}">Productos</a><span>›</span>Nuevo</div><p>Registra la información comercial y el stock independiente de cada talla y color.</p></div>
@@ -33,11 +33,12 @@
     <section class="card product-section variants-section">
         <header class="product-section-header variants-header"><span class="section-icon"><i class="fa-solid fa-layer-group"></i></span><div><h2>Tallas, colores y stock</h2><p>Cada fila representa una combinación con inventario independiente.</p></div><button type="button" class="btn btn-outline btn-sm" id="addVariant"><i class="fa-solid fa-plus"></i> Agregar variante</button></header>
         <div class="variant-summary" aria-live="polite"><span><i class="fa-solid fa-boxes-stacked"></i><strong id="variantCount">0</strong> variantes</span><span><i class="fa-solid fa-cubes"></i><strong id="totalStock">0</strong> unidades</span><span class="summary-warning"><i class="fa-solid fa-triangle-exclamation"></i><strong id="lowStockCount">0</strong> con stock bajo</span></div>
-        <div class="variant-table-header"><span>Talla</span><span>Color</span><span>Código de barras</span><span>Stock</span><span>Mínimo</span><span>Estado</span><span></span></div>
+        <div class="variant-table-header"><span>Talla</span><span>Detalle de talla</span><span>Color</span><span>Código de barras</span><span>Stock</span><span>Mínimo</span><span>Estado</span><span></span></div>
         <div id="variantsContainer">
         @foreach($oldVariants as $index=>$variant)
             <div class="variant-row" data-variant-row>
-                <label><span>Talla</span><input type="text" name="variantes[{{ $index }}][talla]" class="form-control" value="{{ $variant['talla']??'' }}" maxlength="50" placeholder="M" data-field="talla" data-variant-size></label>
+                <label><span>Talla(s)</span><input type="text" name="variantes[{{ $index }}][talla]" class="form-control" value="{{ $variant['talla']??'' }}" maxlength="50" placeholder="S, M, L, XL" title="Separa varias tallas con comas" data-field="talla" data-variant-size></label>
+                <label><span>Detalle de talla</span><input type="text" name="variantes[{{ $index }}][detalle_talla]" class="form-control" value="{{ $variant['detalle_talla']??'' }}" maxlength="500" placeholder="Ej.: Pecho 84-88 cm" data-field="detalle_talla"></label>
                 <label><span>Color</span><input type="text" name="variantes[{{ $index }}][color]" class="form-control" value="{{ $variant['color']??'' }}" maxlength="80" placeholder="Negro" data-field="color" data-variant-color></label>
                 <label><span>Código de barras</span><input type="text" name="variantes[{{ $index }}][codigo_barra]" class="form-control" value="{{ $variant['codigo_barra']??'' }}" maxlength="100" placeholder="Opcional" data-field="codigo_barra" data-variant-barcode></label>
                 <label><span>Stock</span><input type="number" name="variantes[{{ $index }}][stock]" class="form-control" value="{{ $variant['stock']??0 }}" min="0" max="2000000000" data-field="stock" data-variant-stock></label>
@@ -58,9 +59,29 @@
         @endforeach
         <small class="field-help">La oferta debe ser menor al precio de venta.</small>
     </section>
-    <section class="card product-section"><x-product-section-title icon="fa-image" title="Imagen" help="JPG, PNG o WEBP · Máximo 4 MB." />
-        <button type="button" id="img-preview" class="product-image-picker" aria-label="Seleccionar imagen"><span id="img-placeholder"><i class="fa-regular fa-images"></i><strong>Subir imagen</strong><small>Haz clic para seleccionar</small></span><img id="img-shown" src="" alt="Vista previa de la imagen seleccionada" hidden></button>
-        <input type="file" name="imagen" id="imagenInput" accept="image/jpeg,image/png,image/webp" hidden><button type="button" class="btn btn-outline image-select-button" id="selectImage"><i class="fa-solid fa-arrow-up-from-bracket"></i> Seleccionar imagen</button><small id="imageClientError" class="field-error" hidden></small>@error('imagen')<small class="field-error">{{ $message }}</small>@enderror
+    <section class="card product-section product-images-section"><x-product-section-title icon="fa-images" title="Imágenes del producto" help="Sube hasta 5 imágenes por cada combinación de talla y color." />
+        <div data-product-gallery>
+            <section class="product-gallery-group" data-gallery-group>
+                <div class="product-gallery-group-assignment">
+                    <label>Variante de las 5 imágenes<select data-gallery-group-variant><option value="">Todas las variantes</option></select></label>
+                    <small>La selección se aplicará a la imagen principal y a las cuatro alternas.</small>
+                </div>
+                <div class="product-gallery-grid">
+                    @for($imageIndex = 0; $imageIndex < 5; $imageIndex++)
+                        <article class="product-gallery-item" data-gallery-item>
+                            <button type="button" class="product-gallery-preview" data-gallery-picker aria-label="Seleccionar {{ $imageIndex === 0 ? 'imagen principal' : 'imagen alterna '.($imageIndex + 1) }}"><span><i class="{{ $imageIndex === 0 ? 'fa-solid fa-cloud-arrow-up' : 'fa-regular fa-image' }}"></i><strong>{{ $imageIndex === 0 ? 'Seleccionar imagen principal' : 'Alterna '.($imageIndex) }}</strong><small>{{ $imageIndex === 0 ? 'JPG, PNG o WEBP · máximo 4 MB' : 'Haz clic para cargar' }}</small></span><img alt="Vista previa" hidden>@if($imageIndex === 0)<b class="gallery-primary-badge">Principal</b>@endif</button>
+                            <input type="file" name="imagenes[{{ $imageIndex }}][archivo]" accept="image/jpeg,image/png,image/webp" hidden data-gallery-input>
+                            <input type="hidden" name="imagenes[{{ $imageIndex }}][talla]" data-gallery-size>
+                            <input type="hidden" name="imagenes[{{ $imageIndex }}][color]" data-gallery-color>
+                            @error("imagenes.$imageIndex.archivo")<small class="field-error">{{ $message }}</small>@enderror
+                        </article>
+                    @endfor
+                </div>
+            </section>
+        </div>
+        <button type="button" class="btn btn-outline image-select-button" data-add-gallery-group><i class="fa-solid fa-plus"></i> Agregar 5 fotos para otra variante</button>
+        <small id="imageClientError" class="field-error" hidden></small>
+        @error('imagenes')<small class="field-error">{{ $message }}</small>@enderror
     </section>
     <section class="card product-section options-card"><x-product-section-title icon="fa-sliders" title="Publicación" help="Disponibilidad dentro del sistema." />
         <label class="option-switch"><input type="checkbox" name="activo" value="1" @checked(old('activo',true))><span><strong>Producto activo</strong><small>Visible para ventas y catálogo.</small></span></label>
@@ -72,7 +93,7 @@
 </form>
 
 <template id="variantTemplate"><div class="variant-row" data-variant-row>
-    <label><span>Talla</span><input type="text" class="form-control" maxlength="50" placeholder="M" data-field="talla" data-variant-size></label><label><span>Color</span><input type="text" class="form-control" maxlength="80" placeholder="Negro" data-field="color" data-variant-color></label><label><span>Código de barras</span><input type="text" class="form-control" maxlength="100" placeholder="Opcional" data-field="codigo_barra" data-variant-barcode></label><label><span>Stock</span><input type="number" class="form-control" value="0" min="0" max="2000000000" data-field="stock" data-variant-stock></label><label><span>Mínimo</span><input type="number" class="form-control" value="5" min="0" max="2000000000" data-field="stock_minimo" data-variant-minimum></label><span class="variant-state out" data-variant-state>Agotada</span><button type="button" class="remove-variant" data-remove-variant aria-label="Eliminar variante"><i class="fa-solid fa-trash"></i></button>
+    <label><span>Talla</span><input type="text" class="form-control" maxlength="50" placeholder="M" data-field="talla" data-variant-size></label><label><span>Detalle de talla</span><input type="text" class="form-control" maxlength="500" placeholder="Ej.: Pecho 84-88 cm" data-field="detalle_talla"></label><label><span>Color</span><input type="text" class="form-control" maxlength="80" placeholder="Negro" data-field="color" data-variant-color></label><label><span>Código de barras</span><input type="text" class="form-control" maxlength="100" placeholder="Opcional" data-field="codigo_barra" data-variant-barcode></label><label><span>Stock</span><input type="number" class="form-control" value="0" min="0" max="2000000000" data-field="stock" data-variant-stock></label><label><span>Mínimo</span><input type="number" class="form-control" value="5" min="0" max="2000000000" data-field="stock_minimo" data-variant-minimum></label><span class="variant-state out" data-variant-state>Agotada</span><button type="button" class="remove-variant" data-remove-variant aria-label="Eliminar variante"><i class="fa-solid fa-trash"></i></button>
 </div></template>
 @endsection
 @push('scripts')<script src="{{ asset('js/product-form.js') }}" defer></script><script src="{{ asset('js/product-image.js') }}" defer></script>@endpush

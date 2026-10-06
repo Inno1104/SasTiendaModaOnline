@@ -14,10 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
     form.querySelectorAll('.settings-series').forEach((input) => {
         input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
     });
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
         if (confirmation.value !== '1') {
             event.preventDefault();
-            if (!window.confirm('Estos cambios afectarán los próximos cálculos y comprobantes. ¿Deseas continuar?')) return;
+            if (!await window.appConfirm('Estos cambios afectarán los próximos cálculos y comprobantes. ¿Deseas continuar?')) return;
             confirmation.value = '1';
             form.requestSubmit();
             return;

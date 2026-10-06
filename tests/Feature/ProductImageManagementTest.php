@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Categoria;
 use App\Models\Producto;
+use App\Models\ProductoImagen;
 use App\Models\Rol;
 use App\Models\Tienda;
 use App\Models\User;
@@ -55,6 +56,142 @@ class ProductImageManagementTest extends TestCase
 
         $this->assertSame('productos/'.$store->id.'/current.jpg', $product->fresh()->imagen);
         Storage::disk('public')->assertExists($product->imagen);
+    }
+
+    public function test_update_can_add_a_new_variant_with_its_color_images(): void
+    {
+        Storage::fake('public');
+        [$administrator, $store] = $this->userWithStore();
+        $category = $this->category($store);
+        $product = $this->product($store, $category, '');
+        $images = collect(range(0, 4))->mapWithKeys(fn (int $index) => [$index => [
+            'archivo' => UploadedFile::fake()->image("nuevo-rojo-$index.webp", 800, 800),
+            'talla' => 'M',
+            'color' => 'Rojo',
+        ]])->all();
+
+        $this->actingAs($administrator)->put(route('productos.update', $product), $this->payload($category, [
+            'nombre' => $product->nombre,
+            'variantes' => [['talla' => 'M', 'color' => 'Rojo', 'codigo_barra' => 'ROJO-M', 'stock' => 9, 'stock_minimo' => 2]],
+            'imagenes' => $images,
+        ]))->assertSessionHas('success');
+
+        $product->refresh()->load('variantes', 'imagenes');
+        $this->assertCount(1, $product->variantes);
+        $this->assertCount(5, $product->imagenes);
+        $this->assertSame('M', $product->imagenes->first()->talla);
+        $this->assertSame('Rojo', $product->imagenes->first()->color);
+        $this->assertTrue($product->imagenes->first()->principal);
+        $this->assertSame($product->imagenes->first()->ruta, $product->imagen);
+        foreach ($product->imagenes as $image) Storage::disk('public')->assertExists($image->ruta);
+        $this->assertDatabaseHas('auditorias', ['accion' => 'producto.imagenes_agregadas', 'auditable_id' => $product->id]);
+    }
+
+    public function test_existing_gallery_images_can_be_replaced_and_deleted_safely(): void
+    {
+        Storage::fake('public');
+        [$administrator, $store] = $this->userWithStore();
+        $category = $this->category($store);
+        $product = $this->product($store, $category, 'productos/'.$store->id.'/principal.jpg');
+        $replace = ProductoImagen::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id, 'producto_id' => $product->id,
+            'ruta' => $product->imagen, 'talla' => null, 'color' => 'Beige', 'orden' => 0, 'principal' => true,
+        ]);
+        $remove = ProductoImagen::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id, 'producto_id' => $product->id,
+            'ruta' => 'productos/'.$store->id.'/alterna.jpg', 'talla' => null, 'color' => 'Beige', 'orden' => 1, 'principal' => false,
+        ]);
+        Storage::disk('public')->put($replace->ruta, 'old-main');
+        Storage::disk('public')->put($remove->ruta, 'old-alternate');
+
+        $this->actingAs($administrator)->put(route('productos.update', $product), $this->payload($category, [
+            'imagenes_existentes' => [
+                ['id' => $replace->id, 'archivo' => UploadedFile::fake()->image('reemplazo.webp', 800, 800)],
+                ['id' => $remove->id, 'eliminar' => 1],
+            ],
+        ]))->assertSessionHas('success');
+
+        $replacementPath = $replace->fresh()->ruta;
+        $this->assertNotSame('productos/'.$store->id.'/principal.jpg', $replacementPath);
+        $this->assertSame($replacementPath, $product->fresh()->imagen);
+        $this->assertDatabaseMissing('producto_imagenes', ['id' => $remove->id]);
+        Storage::disk('public')->assertExists($replacementPath);
+        Storage::disk('public')->assertMissing('productos/'.$store->id.'/principal.jpg');
+        Storage::disk('public')->assertMissing('productos/'.$store->id.'/alterna.jpg');
+        $this->assertDatabaseHas('auditorias', ['accion' => 'producto.imagenes_actualizadas', 'auditable_id' => $product->id]);
+    }
+
+    public function test_multiple_sizes_are_split_with_full_stock_and_share_color_images(): void
+    {
+        Storage::fake('public');
+        [$administrator, $store] = $this->userWithStore();
+        $category = $this->category($store);
+        $product = $this->product($store, $category, '');
+
+        $this->actingAs($administrator)->put(route('productos.update', $product), $this->payload($category, [
+            'nombre' => $product->nombre,
+            'variantes' => [[
+                'talla' => 'S, X, M, L',
+                'color' => 'Blanco',
+                'codigo_barra' => '',
+                'stock' => 10,
+                'stock_minimo' => 3,
+            ]],
+            'imagenes' => [[
+                'archivo' => UploadedFile::fake()->image('blanco-compartido.webp', 800, 800),
+                'talla' => '',
+                'color' => 'Blanco',
+            ]],
+        ]))->assertSessionHas('success');
+
+        $product->refresh()->load('variantes', 'imagenes');
+        $this->assertSame(['L', 'M', 'S', 'X'], $product->variantes->pluck('talla')->sort()->values()->all());
+        $this->assertSame([10], $product->variantes->pluck('stock')->unique()->values()->all());
+        $this->assertSame(40, $product->variantes->sum('stock'));
+        $this->assertDatabaseCount('stock_movimientos', 4);
+        $this->assertCount(1, $product->imagenes);
+        $this->assertNull($product->imagenes->first()->talla);
+        $this->assertSame('Blanco', $product->imagenes->first()->color);
+    }
+
+    public function test_product_gallery_stores_five_images_with_variant_assignments(): void
+    {
+        Storage::fake('public');
+        [$administrator, $store] = $this->userWithStore();
+        $category = $this->category($store);
+        $images = collect(range(0, 4))->mapWithKeys(fn (int $index) => [$index => [
+            'archivo' => UploadedFile::fake()->image("gallery-$index.webp", 800, 800),
+            'talla' => $index === 0 ? '' : 'M',
+            'color' => $index === 0 ? '' : 'Azul',
+        ]])->all();
+
+        $this->actingAs($administrator)->post(route('productos.store'), $this->payload($category, [
+            'imagenes' => $images,
+            'variantes' => [['talla' => 'M', 'color' => 'Azul', 'codigo_barra' => '', 'stock' => 5, 'stock_minimo' => 1]],
+        ]))->assertSessionHas('success');
+
+        $product = Producto::with('imagenes')->sole();
+        $this->assertCount(5, $product->imagenes);
+        $this->assertTrue($product->imagenes->first()->principal);
+        $this->assertSame($product->imagenes->first()->ruta, $product->imagen);
+        $this->assertSame('M', $product->imagenes->get(1)->talla);
+        $this->assertSame('Azul', $product->imagenes->get(1)->color);
+        foreach ($product->imagenes as $image) Storage::disk('public')->assertExists($image->ruta);
+    }
+
+    public function test_product_gallery_rejects_more_than_five_images(): void
+    {
+        Storage::fake('public');
+        [$administrator, $store] = $this->userWithStore();
+        $category = $this->category($store);
+        $images = collect(range(0, 5))->mapWithKeys(fn (int $index) => [$index => [
+            'archivo' => UploadedFile::fake()->image("excess-$index.jpg"),
+        ]])->all();
+
+        $this->actingAs($administrator)->post(route('productos.store'), $this->payload($category, ['imagenes' => $images]))
+            ->assertSessionHasErrors('imagenes');
+        $this->assertDatabaseCount('productos', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles('productos'));
     }
 
     public function test_oversized_dimensions_are_rejected_without_orphan_files(): void

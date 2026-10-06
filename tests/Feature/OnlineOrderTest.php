@@ -31,17 +31,22 @@ class OnlineOrderTest extends TestCase
         $this->post(route('storefront.orders.store', $store->slug), [
             'operacion_id' => $operationId,
             'confirma_pedido' => '1',
-        ])->assertRedirect($store->publicUrl().'#pedido-confirmado')
+        ])->assertRedirect(route('storefront.transfer.show', [
+            'slug' => $store->slug,
+            'operation' => $operationId,
+        ]))
             ->assertSessionHas('online_order');
 
         $order = PedidoOnline::withoutGlobalScopes()->with('detalles', 'direcciones')->sole();
-        $this->assertSame(OnlineOrderStatus::AWAITING_PAYMENT, $order->estado);
+        $this->assertSame(OnlineOrderStatus::PENDING, $order->estado);
         $this->assertMatchesRegularExpression('/^WEB-'.$store->id.'-'.now()->year.'-000001$/', $order->numero);
         $this->assertSame('150.00', $order->subtotal);
         $this->assertSame('150.00', $order->total);
         $this->assertSame('USD', $order->moneda);
         $this->assertSame('invitada@example.com', $order->cliente_email);
+        $this->assertSame('1712345678', $order->cliente_dni);
         $this->assertTrue($order->requiere_factura);
+        $this->assertSame('factura', $order->tipo_comprobante);
 
         $detail = $order->detalles->sole();
         $this->assertSame($product->id, $detail->producto_id);
@@ -98,7 +103,7 @@ class OnlineOrderTest extends TestCase
         $this->assertSame($first->id, $second->id);
         $this->assertDatabaseCount('pedidos_online', 1);
         $this->assertDatabaseCount('pedido_online_detalles', 1);
-        $this->assertDatabaseCount('pedido_online_direcciones', 1);
+        $this->assertDatabaseCount('pedido_online_direcciones', 2);
         $this->assertSame(1, DB::table('pedido_online_contadores')->value('ultimo_numero'));
     }
 
@@ -179,7 +184,7 @@ class OnlineOrderTest extends TestCase
     {
         $this->assertTrue(Schema::hasColumns('pedidos_online', [
             'tienda_id', 'operacion_id', 'operacion_hash', 'numero', 'estado',
-            'cliente_email', 'subtotal', 'total', 'moneda', 'pagado_at', 'cancelado_at',
+            'cliente_dni', 'cliente_email', 'subtotal', 'total', 'moneda', 'pagado_at', 'cancelado_at',
         ]));
         $this->assertTrue(Schema::hasColumns('pedido_online_detalles', [
             'pedido_online_id', 'producto_id', 'variante_id', 'producto_nombre',
@@ -240,7 +245,7 @@ class OnlineOrderTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $payload = [
-            'cliente' => ['nombre' => 'Ana', 'apellido' => 'Paredes', 'email' => 'invitada@example.com', 'telefono' => '+593991234567'],
+            'cliente' => ['nombre' => 'Ana', 'apellido' => 'Paredes', 'dni' => '1712345678', 'email' => 'invitada@example.com', 'telefono' => '+593991234567'],
             'entrega' => ['pais_codigo' => 'EC', 'provincia' => 'Pichincha', 'ciudad' => 'Quito', 'codigo_postal' => '170101', 'direccion' => 'Av. Central 123', 'referencia' => 'Puerta azul'],
             'fiscal' => $invoice
                 ? ['requiere_factura' => '1', 'tipo_identificacion' => 'ruc_nit', 'identificacion' => '1790012345001', 'razon_social' => 'Comercial Andina', 'direccion_fiscal' => 'Av. Fiscal 10']

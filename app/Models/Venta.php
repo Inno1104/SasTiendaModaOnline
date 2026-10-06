@@ -44,6 +44,11 @@ class Venta extends Model
         return $this->hasMany(PagoVenta::class)->orderBy('id');
     }
 
+    public function pedidoOnline()
+    {
+        return $this->hasOne(PedidoOnline::class);
+    }
+
     public function caja()
     {
         return $this->belongsTo(Caja::class);

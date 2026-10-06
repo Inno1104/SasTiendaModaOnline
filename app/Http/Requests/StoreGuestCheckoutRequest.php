@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\EcuadorUbicacion;
 use App\Support\StoreLocation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class StoreGuestCheckoutRequest extends FormRequest
 {
@@ -16,9 +18,10 @@ final class StoreGuestCheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cliente' => ['required', 'array:nombre,apellido,email,telefono'],
+            'cliente' => ['required', 'array:nombre,apellido,dni,email,telefono'],
             'cliente.nombre' => ['required', 'string', 'max:100', 'regex:/^[\pL\pM .\'-]+$/u'],
             'cliente.apellido' => ['required', 'string', 'max:100', 'regex:/^[\pL\pM .\'-]+$/u'],
+            'cliente.dni' => ['required', 'string', 'min:5', 'max:30', 'regex:/^[A-Z0-9.-]+$/i'],
             'cliente.email' => ['required', 'email:rfc', 'max:150'],
             'cliente.telefono' => ['required', 'string', 'regex:/^\+?[0-9]{7,20}$/'],
 
@@ -30,16 +33,18 @@ final class StoreGuestCheckoutRequest extends FormRequest
             'entrega.direccion' => ['required', 'string', 'max:255'],
             'entrega.referencia' => ['nullable', 'string', 'max:255'],
 
-            'fiscal' => ['required', 'array:requiere_factura,tipo_identificacion,identificacion,razon_social,direccion_fiscal'],
+            'fiscal' => ['required', 'array:requiere_factura,tipo_comprobante,usar_datos_contacto,tipo_identificacion,identificacion,razon_social,direccion_fiscal'],
             'fiscal.requiere_factura' => ['required', 'boolean'],
+            'fiscal.tipo_comprobante' => ['required', Rule::in(['ticket', 'boleta', 'factura'])],
+            'fiscal.usar_datos_contacto' => ['required', 'boolean'],
             'fiscal.tipo_identificacion' => [
                 'nullable',
-                Rule::requiredIf(fn () => $this->boolean('fiscal.requiere_factura')),
+                Rule::requiredIf(fn () => ! $this->boolean('fiscal.usar_datos_contacto')),
                 Rule::in(['cedula_dni', 'ruc_nit', 'pasaporte', 'otro']),
             ],
             'fiscal.identificacion' => [
                 'nullable',
-                Rule::requiredIf(fn () => $this->boolean('fiscal.requiere_factura')),
+                Rule::requiredIf(fn () => ! $this->boolean('fiscal.usar_datos_contacto')),
                 'string',
                 'min:5',
                 'max:30',
@@ -47,12 +52,18 @@ final class StoreGuestCheckoutRequest extends FormRequest
             ],
             'fiscal.razon_social' => [
                 'nullable',
-                Rule::requiredIf(fn () => $this->boolean('fiscal.requiere_factura')),
+                Rule::requiredIf(fn () => ! $this->boolean('fiscal.usar_datos_contacto')),
                 'string',
                 'max:180',
             ],
-            'fiscal.direccion_fiscal' => ['nullable', 'string', 'max:255'],
+            'fiscal.direccion_fiscal' => [
+                'nullable',
+                Rule::requiredIf(fn () => ! $this->boolean('fiscal.usar_datos_contacto')),
+                'string',
+                'max:255',
+            ],
             'acepta_privacidad' => ['accepted'],
+            'confirmar_pedido' => ['sometimes', 'accepted'],
         ];
     }
 
@@ -63,6 +74,8 @@ final class StoreGuestCheckoutRequest extends FormRequest
             'cliente.nombre.regex' => 'Los nombres contienen caracteres no permitidos.',
             'cliente.apellido.required' => 'Ingresa tus apellidos.',
             'cliente.apellido.regex' => 'Los apellidos contienen caracteres no permitidos.',
+            'cliente.dni.required' => 'Ingresa tu DNI o documento de identidad.',
+            'cliente.dni.regex' => 'El DNI contiene caracteres no permitidos.',
             'cliente.email.required' => 'Ingresa tu correo electrónico.',
             'cliente.email.email' => 'Ingresa un correo electrónico válido.',
             'cliente.telefono.required' => 'Ingresa un teléfono de contacto.',
@@ -80,16 +93,44 @@ final class StoreGuestCheckoutRequest extends FormRequest
         ];
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->hasAny(['entrega.pais_codigo', 'entrega.provincia', 'entrega.ciudad'])) {
+                return;
+            }
+            if ($this->input('entrega.pais_codigo') !== 'EC') {
+                return;
+            }
+
+            $exists = EcuadorUbicacion::query()
+                ->where('provincia', $this->input('entrega.provincia'))
+                ->where('canton', $this->input('entrega.ciudad'))
+                ->exists();
+
+            if (! $exists) {
+                $validator->errors()->add('entrega.ciudad', 'Selecciona un cantón válido para la provincia indicada.');
+            }
+        });
+    }
+
     protected function prepareForValidation(): void
     {
         $customer = (array) $this->input('cliente', []);
         $delivery = (array) $this->input('entrega', []);
         $fiscal = (array) $this->input('fiscal', []);
 
+        $legacyInvoice = filter_var($fiscal['requiere_factura'] ?? false, FILTER_VALIDATE_BOOL);
+        $fiscal['tipo_comprobante'] = $fiscal['tipo_comprobante'] ?? ($legacyInvoice ? 'factura' : 'boleta');
+        $fiscal['usar_datos_contacto'] = array_key_exists('usar_datos_contacto', $fiscal)
+            ? filter_var($fiscal['usar_datos_contacto'], FILTER_VALIDATE_BOOL)
+            : ! $legacyInvoice;
+
         foreach (['nombre', 'apellido'] as $field) {
             $customer[$field] = $this->normalizeText($customer[$field] ?? null);
         }
         $customer['email'] = mb_strtolower((string) $this->normalizeText($customer['email'] ?? null));
+        $customer['dni'] = mb_strtoupper(preg_replace('/\s+/u', '', trim((string) ($customer['dni'] ?? ''))));
         $customer['telefono'] = $this->normalizePhone($customer['telefono'] ?? null);
 
         foreach (['provincia', 'ciudad', 'direccion', 'referencia'] as $field) {
@@ -98,21 +139,18 @@ final class StoreGuestCheckoutRequest extends FormRequest
         $delivery['pais_codigo'] = mb_strtoupper(trim((string) ($delivery['pais_codigo'] ?? '')));
         $delivery['codigo_postal'] = mb_strtoupper((string) $this->normalizeText($delivery['codigo_postal'] ?? null));
 
-        $fiscal['requiere_factura'] = filter_var($fiscal['requiere_factura'] ?? false, FILTER_VALIDATE_BOOL);
+        $fiscal['requiere_factura'] = $fiscal['tipo_comprobante'] === 'factura';
         $fiscal['tipo_identificacion'] = $this->normalizeText($fiscal['tipo_identificacion'] ?? null);
         $fiscal['identificacion'] = mb_strtoupper(preg_replace('/\s+/u', '', trim((string) ($fiscal['identificacion'] ?? ''))));
         foreach (['razon_social', 'direccion_fiscal'] as $field) {
             $fiscal[$field] = $this->normalizeText($fiscal[$field] ?? null);
         }
 
-        if (! $fiscal['requiere_factura']) {
-            $fiscal = [
-                'requiere_factura' => false,
-                'tipo_identificacion' => null,
-                'identificacion' => null,
-                'razon_social' => null,
-                'direccion_fiscal' => null,
-            ];
+        if ($fiscal['usar_datos_contacto']) {
+            $fiscal['tipo_identificacion'] = 'cedula_dni';
+            $fiscal['identificacion'] = $customer['dni'];
+            $fiscal['razon_social'] = trim(($customer['nombre'] ?? '').' '.($customer['apellido'] ?? ''));
+            $fiscal['direccion_fiscal'] = $delivery['direccion'] ?? null;
         }
 
         $this->merge([

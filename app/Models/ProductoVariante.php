@@ -17,9 +17,21 @@ class ProductoVariante extends Model
 
     protected $table = 'producto_variantes';
 
-    protected $fillable = ['tienda_id', 'producto_id', 'talla', 'color', 'codigo_barra', 'stock', 'stock_minimo', 'lock_version'];
+    protected $fillable = ['tienda_id', 'producto_id', 'talla', 'detalle_talla', 'color', 'codigo_barra', 'precio_compra', 'precio_venta', 'precio_oferta', 'stock', 'stock_minimo', 'lock_version'];
 
-    protected $casts = ['stock' => 'integer', 'stock_minimo' => 'integer', 'lock_version' => 'integer'];
+    protected $casts = ['precio_compra' => 'decimal:2', 'precio_venta' => 'decimal:2', 'precio_oferta' => 'decimal:2', 'stock' => 'integer', 'stock_minimo' => 'integer', 'lock_version' => 'integer'];
+
+    public function precioActual(): float
+    {
+        if ($this->precio_venta === null && $this->precio_oferta === null) {
+            return $this->producto->precioActual();
+        }
+
+        $regular = $this->precio_venta !== null ? (float) $this->precio_venta : (float) $this->producto->precio_venta;
+        $offer = $this->precio_oferta !== null ? (float) $this->precio_oferta : null;
+
+        return $offer !== null && $offer > 0 && $offer < $regular ? $offer : $regular;
+    }
 
     public function producto()
     {

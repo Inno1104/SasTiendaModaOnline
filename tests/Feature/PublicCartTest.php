@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Categoria;
 use App\Models\Producto;
+use App\Models\ProductoImagen;
 use App\Models\ProductoVariante;
 use App\Models\Tienda;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,21 +18,37 @@ class PublicCartTest extends TestCase
     public function test_customer_can_add_a_variant_and_server_recalculates_cart_price(): void
     {
         [$store, $variant] = $this->catalogContext('agregar', 8, 120, 90);
+        ProductoImagen::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'producto_id' => $variant->producto_id,
+            'ruta' => 'productos/'.$store->id.'/azul-m.jpg',
+            'talla' => 'M',
+            'color' => 'Azul',
+            'orden' => 0,
+            'principal' => true,
+        ]);
 
-        $this->post(route('storefront.cart.store', $store->slug), [
+        $this->from($store->publicUrl().'#catalogo')->post(route('storefront.cart.store', $store->slug), [
             'variante_id' => $variant->id,
             'cantidad' => 2,
             'precio' => 0.01,
             'nombre' => 'Manipulado',
-        ])->assertRedirect($store->publicUrl().'#carrito')
+        ])->assertRedirect($store->publicUrl().'#catalogo')
             ->assertSessionHas('cart_success');
 
         $this->assertSame([$variant->id => 2], session('public_cart_store_'.$store->id));
 
-        $this->get($store->publicUrl())
+        $this->get(route('storefront.cart.show', $store->slug))
             ->assertOk()
             ->assertSee('Carrito (2)')
             ->assertSee('M</b> / Azul', false)
+            ->assertSee('productos/'.$store->id.'/azul-m.jpg')
+            ->assertSee(route('storefront.product.show', [
+                'slug' => $store->slug,
+                'code' => $variant->producto->codigo,
+                'variante' => $variant->id,
+                'cantidad' => 2,
+            ]))
             ->assertSee('$ 90.00')
             ->assertSee('$ 180.00')
             ->assertDontSee('Manipulado');
@@ -96,15 +113,15 @@ class PublicCartTest extends TestCase
         }
 
         $this->patch(route('storefront.cart.update', ['slug' => $store->slug, 'variant' => $first->id]), ['cantidad' => 4])
-            ->assertRedirect($store->publicUrl().'#carrito');
+            ->assertRedirect(route('storefront.cart.show', $store->slug));
         $this->assertSame([$first->id => 4, $second->id => 1], session('public_cart_store_'.$store->id));
 
         $this->delete(route('storefront.cart.destroy', ['slug' => $store->slug, 'variant' => $first->id]))
-            ->assertRedirect($store->publicUrl().'#carrito');
+            ->assertRedirect(route('storefront.cart.show', $store->slug));
         $this->assertSame([$second->id => 1], session('public_cart_store_'.$store->id));
 
         $this->delete(route('storefront.cart.clear', $store->slug))
-            ->assertRedirect($store->publicUrl().'#carrito');
+            ->assertRedirect(route('storefront.cart.show', $store->slug));
         $this->assertNull(session('public_cart_store_'.$store->id));
     }
 
@@ -114,17 +131,45 @@ class PublicCartTest extends TestCase
         $this->post(route('storefront.cart.store', $store->slug), ['variante_id' => $variant->id, 'cantidad' => 6]);
 
         $variant->forceFill(['stock' => 2])->save();
-        $this->get($store->publicUrl())
+        $this->get(route('storefront.cart.show', $store->slug))
             ->assertOk()
             ->assertSee('Ajustamos el carrito')
             ->assertSee('Carrito (2)');
         $this->assertSame([$variant->id => 2], session('public_cart_store_'.$store->id));
 
         $product->forceFill(['activo' => false])->save();
-        $this->get($store->publicUrl())
+        $this->get(route('storefront.cart.show', $store->slug))
             ->assertOk()
             ->assertSee('Tu carrito está vacío');
         $this->assertNull(session('public_cart_store_'.$store->id));
+    }
+
+    public function test_customer_can_replace_the_cart_variant_from_product_detail(): void
+    {
+        [$store, $original] = $this->catalogContext('editar-variante', 10);
+        $replacement = ProductoVariante::create([
+            'tienda_id' => $store->id,
+            'producto_id' => $original->producto_id,
+            'talla' => 'L',
+            'color' => 'Negro',
+            'stock' => 8,
+            'stock_minimo' => 2,
+        ]);
+
+        $this->post(route('storefront.cart.store', $store->slug), [
+            'variante_id' => $original->id,
+            'cantidad' => 2,
+        ]);
+
+        $this->patch(route('storefront.cart.update', ['slug' => $store->slug, 'variant' => $original->id]), [
+            'nueva_variante_id' => $replacement->id,
+            'cantidad' => 3,
+        ])->assertRedirect(route('storefront.cart.show', $store->slug));
+
+        $this->assertSame([$replacement->id => 3], session('public_cart_store_'.$store->id));
+        $this->get(route('storefront.cart.show', $store->slug))
+            ->assertSee('L</b> / Negro', false)
+            ->assertDontSee('M</b> / Azul', false);
     }
 
     public function test_each_public_store_has_an_independent_cart(): void

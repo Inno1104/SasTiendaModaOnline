@@ -1,3 +1,9 @@
+@php
+    $layoutStore = auth()->user()?->tienda;
+    $adminAccent = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $layoutStore?->color_primario)
+        ? $layoutStore->color_primario
+        : '#e8398c';
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -72,10 +78,10 @@
             height: 82px; padding: 0 24px;
             position: sticky; top: 0; z-index: 200;
             color: #fff;
-            background: radial-gradient(circle at 85% 0, rgba(211,0,78,.35), transparent 28%),
-                        linear-gradient(105deg,#210014,#500025 58%,#310019);
-            border-top: 2px solid #c90050;
-            box-shadow: 0 7px 22px rgba(70,0,35,.18);
+            background: radial-gradient(circle at 85% 0, color-mix(in srgb,var(--accent) 34%,transparent), transparent 28%),
+                        linear-gradient(105deg,var(--admin-header-deep),var(--admin-header) 58%,var(--admin-header-deep));
+            border-top: 2px solid var(--accent);
+            box-shadow: 0 7px 22px color-mix(in srgb,var(--admin-header) 25%,transparent);
         }
         .desktop-brand { display:flex; align-items:center; gap:11px; min-width:210px; color:#fff; text-decoration:none; }
         .desktop-brand .logo-icon { width:46px; height:46px; overflow:hidden; }
@@ -89,7 +95,7 @@
             border:0; border-radius:9px; color:rgba(255,255,255,.92); background:transparent;
             font:600 12px 'Poppins',sans-serif; text-decoration:none; cursor:pointer; white-space:nowrap;
         }
-        .desktop-nav-link:hover,.desktop-nav-link.active { color:#fff; background:linear-gradient(110deg,#87003d,#ae0051); }
+        .desktop-nav-link:hover,.desktop-nav-link.active { color:#fff; background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 68%,var(--admin-header)),var(--accent)); }
         .desktop-nav-link .fa-chevron-down { margin-left:3px; font-size:8px; }
         .desktop-dropdown {
             min-width:205px; display:none; position:absolute; top:calc(100% + 8px); left:0;
@@ -98,8 +104,9 @@
         }
         .desktop-nav-group:hover .desktop-dropdown,.desktop-nav-group:focus-within .desktop-dropdown { display:block; }
         .desktop-dropdown a { display:flex; align-items:center; gap:10px; padding:10px 11px; border-radius:7px; color:#29263a; text-decoration:none; font-size:11px; }
-        .desktop-dropdown a:hover,.desktop-dropdown a.active { color:#c90050; background:#fff0f6; }
+        .desktop-dropdown a:hover,.desktop-dropdown a.active { color:var(--accent); background:color-mix(in srgb,var(--accent) 7%,#fff); }
         .desktop-tools { margin-left:auto; display:flex; align-items:center; gap:14px; }
+        .order-notifications{position:relative}.notification-button{position:relative;display:grid;width:42px;height:42px;place-items:center;border:1px solid rgba(255,255,255,.18);border-radius:11px;color:#fff;background:rgba(255,255,255,.08);cursor:pointer}.notification-button:hover,.notification-button:focus-visible{background:rgba(255,255,255,.17)}.notification-button>i{font-size:15px}.notification-count{position:absolute;top:-6px;right:-6px;display:grid;min-width:20px;height:20px;padding:0 5px;place-items:center;border:2px solid var(--admin-header);border-radius:999px;background:var(--accent);color:#fff;font-size:9px;font-weight:800}.notification-panel{right:0;left:auto;width:360px;padding:0;overflow:hidden}.order-notifications:hover .notification-panel,.order-notifications:focus-within .notification-panel{display:block}.notification-panel>header{display:flex;align-items:center;justify-content:space-between;padding:14px 15px;border-bottom:1px solid #eee6eb}.notification-panel h2{margin:0;color:#211c32;font-size:13px}.notification-panel header span{padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 10%,#fff);color:var(--accent);font-size:9px;font-weight:800}.notification-list{display:grid;max-height:360px;overflow:auto}.notification-item{display:grid!important;grid-template-columns:36px 1fr auto;gap:10px!important;align-items:center;padding:12px 14px!important;border-bottom:1px solid #f1edf0;border-radius:0!important}.notification-item>span{display:grid;width:36px;height:36px;place-items:center;border-radius:10px;background:color-mix(in srgb,var(--accent) 8%,#fff);color:var(--accent)}.notification-item div{display:grid;gap:2px;min-width:0}.notification-item strong{overflow:hidden;color:#252039;font-size:10px;text-overflow:ellipsis;white-space:nowrap}.notification-item small{color:#8b8496;font-size:8px}.notification-item>em{color:var(--accent);font-size:9px;font-style:normal;font-weight:800}.notification-empty{display:grid;justify-items:center;gap:7px;padding:28px 16px;color:#90889a;text-align:center;font-size:10px}.notification-empty i{color:#d8cfd5;font-size:24px}.notification-footer{display:flex!important;justify-content:center!important;padding:11px!important;border-radius:0!important;background:color-mix(in srgb,var(--accent) 5%,#fff);color:var(--accent)!important;font-weight:700!important}
         .desktop-search { position:relative; }
         .desktop-search i { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#d5afc2; font-size:12px; }
         .desktop-search input { width:210px; height:42px; padding:0 14px 0 38px; border:1px solid rgba(255,255,255,.16); border-radius:9px; outline:0; color:#fff; background:rgba(255,255,255,.08); font:11px 'Poppins',sans-serif; }
@@ -110,8 +117,8 @@
         .desktop-user .name { color:#fff; }
         .desktop-user-menu { right:0; left:auto; }
         .desktop-user-menu form { margin:0; }
-        .desktop-user-menu button { width:100%; display:flex; align-items:center; gap:10px; padding:10px 11px; border:0; border-radius:7px; color:#c7004b; background:transparent; font:11px 'Poppins',sans-serif; cursor:pointer; }
-        .desktop-user-menu button:hover { background:#fff0f6; }
+        .desktop-user-menu button { width:100%; display:flex; align-items:center; gap:10px; padding:10px 11px; border:0; border-radius:7px; color:var(--accent); background:transparent; font:11px 'Poppins',sans-serif; cursor:pointer; }
+        .desktop-user-menu button:hover { background:color-mix(in srgb,var(--accent) 7%,#fff); }
         .sidebar-logo {
             padding: 22px 24px;
             display: flex;
@@ -143,7 +150,7 @@
         .sidebar-store { flex-shrink: 0; }
         .user-avatar {
             width: 38px; height: 38px;
-            background: linear-gradient(135deg, #7c4dff, #e8398c);
+            background: linear-gradient(135deg, color-mix(in srgb,var(--accent) 62%,#6366f1), var(--accent));
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             color: #fff; font-size: 14px; font-weight: 600;
@@ -161,7 +168,7 @@
             overflow-x: hidden;
             overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: rgba(232,57,140,0.65) rgba(255,255,255,0.05);
+            scrollbar-color: var(--accent) rgba(255,255,255,0.05);
         }
         .sidebar-nav::-webkit-scrollbar { width: 6px; }
         .sidebar-nav::-webkit-scrollbar-track {
@@ -169,7 +176,7 @@
             border-radius: 10px;
         }
         .sidebar-nav::-webkit-scrollbar-thumb {
-            background: rgba(232,57,140,0.58);
+            background: color-mix(in srgb,var(--accent) 72%,transparent);
             border-radius: 10px;
         }
         .sidebar-nav::-webkit-scrollbar-thumb:hover { background: var(--accent); }
@@ -200,7 +207,7 @@
         }
         .nav-item.active {
             color: #fff;
-            background: rgba(232,57,140,0.15);
+            background: color-mix(in srgb,var(--accent) 17%,transparent);
             border-left-color: var(--accent);
         }
         .nav-item i { width: 18px; text-align: center; font-size: 15px; }
@@ -375,7 +382,10 @@
         }
         .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-left: 4px solid #22c55e; }
         .alert-danger  { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; border-left: 4px solid #fc8181; }
+        .alert[data-auto-dismiss-alert] { transition: opacity .3s ease, transform .3s ease, max-height .3s ease, margin .3s ease, padding .3s ease; overflow: hidden; }
+        .alert[data-auto-dismiss-alert].is-hiding { opacity: 0; transform: translateY(-8px); max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
         .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-left: 4px solid #f59e0b; }
+        .app-confirm-dialog{position:fixed;top:50%;left:50%;width:min(460px,calc(100% - 32px));max-width:none;max-height:calc(100dvh - 32px);margin:0;padding:0;overflow:auto;transform:translate(-50%,-50%);border:0;border-radius:20px;background:transparent}.app-confirm-dialog::backdrop{background:rgba(15,23,42,.68);backdrop-filter:blur(4px)}.app-confirm-card{overflow:hidden;border-radius:20px;background:#fff;box-shadow:0 28px 80px rgba(15,23,42,.35)}.app-confirm-body{display:grid;justify-items:center;padding:30px 30px 22px;text-align:center}.app-confirm-icon{display:grid;width:58px;height:58px;place-items:center;border-radius:18px;background:color-mix(in srgb,var(--accent) 10%,#fff);color:var(--accent);font-size:24px}.app-confirm-body h2{margin:16px 0 7px;color:var(--text-dark);font-size:20px}.app-confirm-body p{max-width:350px;margin:0;color:var(--text-muted);font-size:13px;line-height:1.6;white-space:pre-line}.app-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px 20px;border-top:1px solid var(--border);background:#fafbfe}.app-confirm-actions button{min-height:44px;border-radius:11px;font:inherit;font-size:13px;font-weight:750;cursor:pointer}.app-confirm-cancel{border:1px solid #dce1ea;background:#fff;color:#41485d}.app-confirm-accept{border:1px solid var(--accent);background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;box-shadow:0 7px 17px color-mix(in srgb,var(--accent) 22%,transparent)}
 
         /* Buttons */
         .btn {
@@ -514,13 +524,12 @@
     </style>
     @stack('styles')
 </head>
-<body>
-    @php $layoutStore = auth()->user()->tienda; @endphp
+<body style="--accent:{{ $adminAccent }};--sidebar-active:{{ $adminAccent }};--accent-dark:color-mix(in srgb,{{ $adminAccent }} 72%,#111827);--admin-header:color-mix(in srgb,{{ $adminAccent }} 38%,#190414);--admin-header-deep:color-mix(in srgb,{{ $adminAccent }} 18%,#11020c);--sidebar-bg:var(--admin-header-deep);--sidebar-hover:color-mix(in srgb,{{ $adminAccent }} 20%,var(--admin-header-deep))">
     <header class="desktop-header">
         <a href="{{ route('dashboard') }}" class="desktop-brand"><span class="logo-icon">@if($layoutStore?->logo)<img class="store-brand-logo" src="{{ asset('storage/'.$layoutStore->logo) }}" alt="Logo de {{ $layoutStore->nombre }}">@else<i class="fa-solid fa-shirt"></i>@endif</span><span><strong>{{ $layoutStore?->nombre ?? 'Tienda Moda' }}</strong><small>SaaS v1.0</small></span></a>
         <nav class="desktop-nav" aria-label="Navegación principal">
             <a href="{{ route('dashboard') }}" class="desktop-nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="fa-solid fa-house"></i>Dashboard</a>
-            <div class="desktop-nav-group"><button class="desktop-nav-link {{ request()->routeIs('ventas*','clientes*','caja*') ? 'active' : '' }}"><i class="fa-solid fa-bag-shopping"></i>Ventas<i class="fa-solid fa-chevron-down"></i></button><div class="desktop-dropdown"><a href="{{ route('ventas.create') }}"><i class="fa-solid fa-cash-register"></i>Nueva venta</a><a href="{{ route('ventas.index') }}"><i class="fa-solid fa-receipt"></i>Historial de ventas</a><a href="{{ route('caja.index') }}"><i class="fa-solid fa-vault"></i>Caja</a><a href="{{ route('clientes.index') }}"><i class="fa-solid fa-users"></i>Clientes</a></div></div>
+            <div class="desktop-nav-group"><button class="desktop-nav-link {{ request()->routeIs('ventas*','clientes*','caja*','pedidos-online*') ? 'active' : '' }}"><i class="fa-solid fa-bag-shopping"></i>Ventas<i class="fa-solid fa-chevron-down"></i></button><div class="desktop-dropdown"><a href="{{ route('ventas.create') }}"><i class="fa-solid fa-cash-register"></i>Nueva venta</a><a href="{{ route('ventas.index') }}"><i class="fa-solid fa-receipt"></i>Historial de ventas</a><a href="{{ route('pedidos-online.index') }}"><i class="fa-solid fa-globe"></i>Pedidos online</a><a href="{{ route('caja.index') }}"><i class="fa-solid fa-vault"></i>Caja</a><a href="{{ route('clientes.index') }}"><i class="fa-solid fa-users"></i>Clientes</a></div></div>
             <div class="desktop-nav-group"><button class="desktop-nav-link {{ request()->routeIs('productos*','categorias*','marcas*') ? 'active' : '' }}"><i class="fa-solid fa-tags"></i>Catálogo<i class="fa-solid fa-chevron-down"></i></button><div class="desktop-dropdown"><a href="{{ route('productos.index') }}"><i class="fa-solid fa-shirt"></i>Productos</a><a href="{{ route('categorias.index') }}"><i class="fa-solid fa-layer-group"></i>Categorías</a><a href="{{ route('marcas.index') }}"><i class="fa-solid fa-star"></i>Marcas</a></div></div>
             <div class="desktop-nav-group"><button class="desktop-nav-link {{ request()->routeIs('stock*','proveedores*','compras*') ? 'active' : '' }}"><i class="fa-solid fa-box"></i>Inventario<i class="fa-solid fa-chevron-down"></i></button><div class="desktop-dropdown"><a href="{{ route('stock.index') }}"><i class="fa-solid fa-boxes-stacked"></i>Stock</a><a href="{{ route('proveedores.index') }}"><i class="fa-solid fa-truck"></i>Proveedores</a><a href="{{ route('compras.index') }}"><i class="fa-solid fa-file-invoice"></i>Compras</a></div></div>
             <div class="desktop-nav-group"><button class="desktop-nav-link {{ request()->routeIs('reportes*') ? 'active' : '' }}"><i class="fa-solid fa-chart-column"></i>Reportes<i class="fa-solid fa-chevron-down"></i></button><div class="desktop-dropdown"><a href="{{ route('reportes.ventas') }}"><i class="fa-solid fa-chart-line"></i>Ventas</a><a href="{{ route('reportes.inventario') }}"><i class="fa-solid fa-chart-pie"></i>Inventario</a></div></div>
@@ -528,6 +537,14 @@
         </nav>
         <div class="desktop-tools">
             <label class="desktop-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Buscar..."></label>
+            <div class="desktop-nav-group order-notifications">
+                <button class="notification-button" type="button" title="Notificaciones de pedidos" aria-label="{{ $orderNotificationCount }} pedido{{ $orderNotificationCount === 1 ? '' : 's' }} pendiente{{ $orderNotificationCount === 1 ? '' : 's' }} de verificar" aria-haspopup="true"><i class="fa-solid fa-bell"></i>@if($orderNotificationCount)<span class="notification-count">{{ $orderNotificationCount > 99 ? '99+' : $orderNotificationCount }}</span>@endif</button>
+                <div class="desktop-dropdown notification-panel">
+                    <header><h2>Pedidos por verificar</h2><span>{{ $orderNotificationCount }} pendiente{{ $orderNotificationCount === 1 ? '' : 's' }}</span></header>
+                    @if($orderNotifications->isNotEmpty())<div class="notification-list">@foreach($orderNotifications as $notification)<a class="notification-item" href="{{ route('pedidos-online.show',$notification->id) }}"><span><i class="fa-solid fa-money-check-dollar"></i></span><div><strong>{{ $notification->numero }}</strong><small>{{ trim($notification->cliente_nombre.' '.$notification->cliente_apellido) }} · {{ $notification->pago_reportado_at?->diffForHumans() }}</small></div><em>{{ $notification->simbolo_moneda }}{{ number_format((float)$notification->total,2) }}</em></a>@endforeach</div>@else<div class="notification-empty"><i class="fa-regular fa-bell-slash"></i><span>No tienes pedidos pendientes.</span></div>@endif
+                    <a class="notification-footer" href="{{ route('pedidos-online.index') }}">Ver todos los pedidos</a>
+                </div>
+            </div>
             <div class="desktop-nav-group desktop-user"><div class="user-avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</div><button class="desktop-nav-link"><span class="user-info"><span class="name">{{ auth()->user()->name }}</span><span class="role">{{ auth()->user()->rol->nombre ?? 'Usuario' }}</span></span><i class="fa-solid fa-chevron-down"></i></button><div class="desktop-dropdown desktop-user-menu"><a href="{{ route('tienda.edit') }}"><i class="fa-solid fa-store"></i>Mi tienda</a><a href="{{ route('configuracion.index') }}"><i class="fa-solid fa-gear"></i>Configuración</a><form method="POST" action="{{ route('logout') }}">@csrf<button><i class="fa-solid fa-right-from-bracket"></i>Cerrar sesión</button></form></div></div>
         </div>
     </header>
@@ -556,7 +573,7 @@
         <div class="sidebar-store" style="margin:0 16px 14px;padding:12px 14px;background:rgba(255,255,255,0.06);border-radius:12px;">
             <div style="font-size:12px;color:#fff;font-weight:600;"><i class="fa-solid fa-store" style="opacity:.7;margin-right:6px;"></i>{{ $miTienda->nombre }}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:linear-gradient(135deg,#e8398c,#7b1fa2);color:#fff;">{{ $miTienda->plan->nombre ?? 'Sin plan' }}</span>
+                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;">{{ $miTienda->plan->nombre ?? 'Sin plan' }}</span>
                 @php $dr = $miTienda->diasRestantes(); @endphp
                 @if($dr !== null)
                     <span style="font-size:10px;color:{{ $dr <= 5 ? '#fca5a5' : 'rgba(255,255,255,0.5)' }};">{{ $dr }} días</span>
@@ -577,6 +594,9 @@
             </a>
             <a href="{{ route('ventas.index') }}" class="nav-item {{ request()->routeIs('ventas.index') ? 'active' : '' }}">
                 <i class="fa-solid fa-receipt"></i><span>Historial Ventas</span>
+            </a>
+            <a href="{{ route('pedidos-online.index') }}" class="nav-item {{ request()->routeIs('pedidos-online*') ? 'active' : '' }}">
+                <i class="fa-solid fa-globe"></i><span>Pedidos Online</span>
             </a>
             <a href="{{ route('caja.index') }}" class="nav-item {{ request()->routeIs('caja*') ? 'active' : '' }}">
                 <i class="fa-solid fa-vault"></i><span>Caja</span>
@@ -652,9 +672,9 @@
                 <a href="{{ route('ventas.create') }}" class="topbar-btn" title="Nueva venta">
                     <i class="fa-solid fa-plus"></i>
                 </a>
-                <a href="#" class="topbar-btn" title="Notificaciones">
+                <a href="{{ route('pedidos-online.index') }}" class="topbar-btn" title="{{ $orderNotificationCount }} pedidos pendientes">
                     <i class="fa-solid fa-bell"></i>
-                    <span class="notif-dot"></span>
+                    @if($orderNotificationCount)<span class="notif-dot"></span>@endif
                 </a>
                 <a href="#" class="topbar-btn" title="Mi perfil">
                     <i class="fa-solid fa-user"></i>
@@ -670,7 +690,7 @@
                 </div>
             @endif
             @if(session('error'))
-                <div class="alert alert-danger">
+                <div class="alert alert-danger" data-auto-dismiss-alert role="alert">
                     <i class="fa-solid fa-circle-xmark"></i>{{ session('error') }}
                 </div>
             @endif
@@ -679,7 +699,30 @@
         </main>
     </div>
 
+    <dialog class="app-confirm-dialog" data-app-confirm-dialog aria-labelledby="app-confirm-title" aria-describedby="app-confirm-message"><div class="app-confirm-card"><div class="app-confirm-body"><span class="app-confirm-icon"><i class="fa-solid fa-circle-question"></i></span><h2 id="app-confirm-title">Confirmar acción</h2><p id="app-confirm-message" data-app-confirm-message></p></div><div class="app-confirm-actions"><button type="button" class="app-confirm-cancel" data-app-confirm-cancel>Cancelar</button><button type="button" class="app-confirm-accept" data-app-confirm-accept>Confirmar</button></div></div></dialog>
+
     <script>
+        (() => {
+            const dialog = document.querySelector('[data-app-confirm-dialog]');
+            const message = dialog?.querySelector('[data-app-confirm-message]');
+            const accept = dialog?.querySelector('[data-app-confirm-accept]');
+            const cancel = dialog?.querySelector('[data-app-confirm-cancel]');
+            let resolver = null;
+            const finish = value => { if (!resolver) return; const resolve = resolver; resolver = null; if (dialog.open) dialog.close(); resolve(value); };
+            window.appConfirm = text => new Promise(resolve => { if (!dialog) { resolve(false); return; } if (resolver) resolver(false); resolver = resolve; message.textContent = text || '¿Deseas continuar con esta acción?'; dialog.showModal(); window.setTimeout(() => accept.focus(), 0); });
+            accept?.addEventListener('click', () => finish(true));
+            cancel?.addEventListener('click', () => finish(false));
+            dialog?.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
+            dialog?.addEventListener('click', event => { if (event.target === dialog) finish(false); });
+            document.addEventListener('submit', event => {
+                const form = event.target.closest?.('form[data-confirm-message]');
+                if (!form || form.dataset.confirmApproved === 'true') { if (form) delete form.dataset.confirmApproved; return; }
+                if (!form.checkValidity()) return;
+                event.preventDefault(); event.stopImmediatePropagation();
+                window.appConfirm(form.dataset.confirmMessage).then(confirmed => { if (!confirmed) return; form.dataset.confirmApproved = 'true'; form.requestSubmit(event.submitter || undefined); });
+            }, true);
+        })();
+
         // Submenús toggle
         document.querySelectorAll('.nav-parent').forEach(item => {
             item.addEventListener('click', () => {
@@ -711,7 +754,16 @@
             // Si se agranda la ventana, asegurar estado limpio
             window.addEventListener('resize', () => { if (window.innerWidth > 1024) cerrar(); });
         })();
+
+        // Los errores transitorios desaparecen sin interrumpir el trabajo del usuario.
+        document.querySelectorAll('[data-auto-dismiss-alert]').forEach(alert => {
+            window.setTimeout(() => {
+                alert.classList.add('is-hiding');
+                window.setTimeout(() => alert.remove(), 300);
+            }, 4500);
+        });
     </script>
+    <script src="{{ asset('js/admin-chart-theme.js') }}?v={{ filemtime(public_path('js/admin-chart-theme.js')) }}"></script>
     @stack('scripts')
 </body>
 </html>

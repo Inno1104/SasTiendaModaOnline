@@ -31,6 +31,13 @@ class UpdateStoreSettingsRequest extends FormRequest
             'configuracion_version' => ['required', 'integer', 'min:0'],
             'motivo_cambio' => ['nullable', 'string', 'max:500'],
             'confirmar_cambio' => ['nullable', 'boolean'],
+            'transferencia_activa' => ['required', 'boolean'],
+            'transferencia_banco' => ['nullable', Rule::requiredIf(fn () => $this->boolean('transferencia_activa')), 'string', 'max:100'],
+            'transferencia_tipo_cuenta' => ['nullable', Rule::requiredIf(fn () => $this->boolean('transferencia_activa')), Rule::in(['ahorros', 'corriente'])],
+            'transferencia_numero_cuenta' => ['nullable', Rule::requiredIf(fn () => $this->boolean('transferencia_activa')), 'string', 'max:60'],
+            'transferencia_titular' => ['nullable', Rule::requiredIf(fn () => $this->boolean('transferencia_activa')), 'string', 'max:150'],
+            'transferencia_identificacion' => ['nullable', 'string', 'max:30'],
+            'transferencia_instrucciones' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -59,6 +66,7 @@ class UpdateStoreSettingsRequest extends FormRequest
             'motivo_cambio' => trim(preg_replace('/\s+/u', ' ', (string) $this->input('motivo_cambio'))),
             'precios_incluyen_igv' => $this->boolean('precios_incluyen_igv'),
             'confirmar_cambio' => $this->boolean('confirmar_cambio'),
+            'transferencia_activa' => $this->boolean('transferencia_activa'),
         ]);
     }
 

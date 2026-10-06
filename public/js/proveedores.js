@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingForm = null;
 
     document.querySelectorAll('[data-supplier-state]').forEach((form) => {
-        form.addEventListener('submit', (event) => {
+        form.addEventListener('submit', async (event) => {
             event.preventDefault();
             pendingForm = form;
             const nextState = form.dataset.nextState || 'nuevo estado';
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmButton.classList.toggle('btn-primary', nextState !== 'inactivo');
 
             if (typeof dialog.showModal === 'function') dialog.showModal();
-            else if (window.confirm(`${message.textContent}\n${consequence.textContent}`)) form.submit();
+            else if (await window.appConfirm(`${message.textContent}\n${consequence.textContent}`)) form.submit();
         });
     });
 

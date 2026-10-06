@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Producto;
+use App\Models\ProductoImagen;
 use App\Models\ProductoVariante;
 use App\Models\Tienda;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -133,6 +134,100 @@ class PublicCatalogTest extends TestCase
         $this->from(route('storefront.show', $store->slug))
             ->get(route('storefront.show', ['slug' => $store->slug, 'q' => str_repeat('x', 101)]))
             ->assertSessionHasErrors('q');
+    }
+
+    public function test_size_color_price_and_order_filters_are_combined(): void
+    {
+        $store = $this->publishedStore('filtros-avanzados');
+        $category = $this->category($store, 'Camisetas');
+        $matching = $this->product($store, $category, 'Camiseta económica', ['precio_venta' => 40]);
+        $expensive = $this->product($store, $category, 'Camiseta premium', ['precio_venta' => 120]);
+        $otherColor = $this->product($store, $category, 'Camiseta azul', ['precio_venta' => 35]);
+        $this->variant($matching, 'M', 'Rojo', 5);
+        $this->variant($expensive, 'M', 'Rojo', 5);
+        $this->variant($otherColor, 'M', 'Azul', 5);
+
+        $this->get(route('storefront.show', [
+            'slug' => $store->slug,
+            'tallas' => ['M'],
+            'colores' => ['Rojo'],
+            'precio_min' => 30,
+            'precio_max' => 80,
+            'orden' => 'precio_asc',
+        ]))->assertOk()
+            ->assertSee('Camiseta económica')
+            ->assertDontSee('Camiseta premium')
+            ->assertDontSee('Camiseta azul');
+    }
+
+    public function test_invalid_advanced_catalog_filters_are_rejected(): void
+    {
+        $store = $this->publishedStore('filtros-invalidos');
+
+        $this->from(route('storefront.show', $store->slug))
+            ->get(route('storefront.show', [
+                'slug' => $store->slug,
+                'precio_min' => 100,
+                'precio_max' => 20,
+                'orden' => 'consulta_insegura',
+            ]))->assertRedirect(route('storefront.show', $store->slug))
+            ->assertSessionHasErrors(['precio_max', 'orden']);
+    }
+
+    public function test_public_product_detail_exposes_dynamic_images_sizes_and_colors(): void
+    {
+        $store = $this->publishedStore('detalle');
+        $category = $this->category($store, 'Trajes');
+        $product = $this->product($store, $category, 'Traje tres piezas', [
+            'descripcion' => 'Traje formal con chaleco y pantalón.',
+            'precio_venta' => 150,
+            'precio_oferta' => 120,
+        ]);
+        $blue = $this->variant($product, 'M', 'Azul', 4);
+        $blue->forceFill(['detalle_talla' => 'Pecho 92-96 cm; cintura 78-82 cm'])->save();
+        $this->variant($product, 'L', 'Azul', 0);
+        $this->variant($product, 'L', 'Beige', 3);
+        $related = $this->product($store, $category, 'Traje azul ejecutivo', ['precio_venta' => 135]);
+        $this->variant($related, 'M', 'Azul marino', 6);
+        ProductoImagen::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'producto_id' => $product->id,
+            'ruta' => 'productos/'.$store->id.'/traje-azul.webp',
+            'talla' => 'M',
+            'color' => 'Azul',
+            'orden' => 0,
+            'principal' => true,
+        ]);
+
+        $this->get(route('storefront.product.show', ['slug' => $store->slug, 'code' => $product->codigo]))
+            ->assertOk()
+            ->assertSee('Traje tres piezas')
+            ->assertSee('Traje formal con chaleco y pantalón.')
+            ->assertSee('traje-azul.webp', false)
+            ->assertSee('data-product-colors', false)
+            ->assertSee('data-product-sizes', false)
+            ->assertSee('"color":"Azul"', false)
+            ->assertSee('"size":"M"', false)
+            ->assertSee('"sizeDetail":"Pecho 92-96 cm; cintura 78-82 cm"', false)
+            ->assertSee('"id":'.$blue->id, false)
+            ->assertSee('Productos similares')
+            ->assertSee('Traje azul ejecutivo')
+            ->assertSee(route('storefront.product.show', ['slug' => $store->slug, 'code' => $related->codigo]), false)
+            ->assertSee('css/storefront-product.css', false)
+            ->assertSee('js/storefront-product.js', false);
+    }
+
+    public function test_public_product_detail_does_not_leak_inactive_or_foreign_products(): void
+    {
+        $store = $this->publishedStore('detalle-seguro');
+        $other = $this->publishedStore('detalle-ajeno');
+        $category = $this->category($store, 'Trajes');
+        $otherCategory = $this->category($other, 'Trajes');
+        $inactive = $this->product($store, $category, 'Traje oculto', ['activo' => false]);
+        $foreign = $this->product($other, $otherCategory, 'Traje ajeno');
+
+        $this->get(route('storefront.product.show', ['slug' => $store->slug, 'code' => $inactive->codigo]))->assertNotFound();
+        $this->get(route('storefront.product.show', ['slug' => $store->slug, 'code' => $foreign->codigo]))->assertNotFound();
     }
 
     private function publishedStore(string $name): Tienda

@@ -36,8 +36,10 @@
         </div>
         <footer class="sa-footer"><i class="fa-solid fa-shield-halved"></i><strong>Control SaaS</strong> © {{ date('Y') }} &nbsp; | &nbsp; Todos los derechos reservados.</footer>
     </main>
+    <dialog class="sa-confirm" data-sa-confirm><div><span><i class="fa-solid fa-circle-question"></i></span><h2>Confirmar acción</h2><p data-sa-confirm-message></p><footer><button type="button" data-sa-cancel>Cancelar</button><button type="button" data-sa-accept>Confirmar</button></footer></div></dialog>
     <script>
         (()=>{const n=document.getElementById('saNav'),o=document.getElementById('saOverlay'),t=document.getElementById('saToggle');const close=()=>{n.classList.remove('open');o.classList.remove('show')};t.addEventListener('click',()=>{n.classList.toggle('open');o.classList.toggle('show')});o.addEventListener('click',close);n.querySelectorAll('a').forEach(a=>a.addEventListener('click',close));addEventListener('resize',()=>innerWidth>1000&&close())})();
+        (()=>{const d=document.querySelector('[data-sa-confirm]'),m=d.querySelector('[data-sa-confirm-message]'),yes=d.querySelector('[data-sa-accept]'),no=d.querySelector('[data-sa-cancel]');let pending=null;document.addEventListener('submit',e=>{const f=e.target.closest?.('form[data-confirm-message]');if(!f||f.dataset.approved==='true'){if(f)delete f.dataset.approved;return}e.preventDefault();e.stopImmediatePropagation();pending=f;m.textContent=f.dataset.confirmMessage;d.showModal()},true);no.addEventListener('click',()=>{pending=null;d.close()});yes.addEventListener('click',()=>{const f=pending;pending=null;d.close();if(f){f.dataset.approved='true';f.requestSubmit()}});d.addEventListener('cancel',()=>pending=null)})();
     </script>
 </body>
 </html>

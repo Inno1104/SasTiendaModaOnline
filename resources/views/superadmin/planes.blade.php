@@ -30,7 +30,7 @@
                 <div class="pl-actions">
                     <a href="{{ route('admin.planes',['edit'=>$plan->id]) }}" class="mini m-edit"><i class="fa-solid fa-pen"></i>Editar</a>
                     <form method="POST" action="{{ route('admin.planes.toggle',$plan) }}">@csrf<button class="mini m-toggle"><i class="fa-solid fa-power-off"></i>{{ $plan->activo ? 'Desactivar' : 'Activar' }}</button></form>
-                    <form method="POST" action="{{ route('admin.planes.destroy',$plan) }}" onsubmit="return confirm('¿Eliminar este plan?');">@csrf<button class="mini m-del" aria-label="Eliminar"><i class="fa-solid fa-trash"></i></button></form>
+                    <form method="POST" action="{{ route('admin.planes.destroy',$plan) }}" data-confirm-message="¿Eliminar este plan?">@csrf<button class="mini m-del" aria-label="Eliminar"><i class="fa-solid fa-trash"></i></button></form>
                 </div>
                 <div class="tiendas-tag"><i class="fa-solid fa-store"></i> {{ $plan->tiendas_count }} tienda(s)</div>
             </article>

@@ -36,6 +36,19 @@
             </div>
         </fieldset>
 
+        <fieldset class="settings-fieldset">
+            <legend>Pago por transferencia bancaria</legend>
+            <label class="settings-check"><input type="hidden" name="transferencia_activa" value="0"><input type="checkbox" name="transferencia_activa" value="1" @checked(old('transferencia_activa',$tienda->transferencia_activa))><span><strong>Aceptar transferencias en la tienda online</strong><small>El cliente verá estos datos después de confirmar su pedido.</small></span></label>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Banco</label><input class="form-control" name="transferencia_banco" value="{{ old('transferencia_banco',$tienda->transferencia_banco) }}" maxlength="100"></div>
+                <div class="form-group"><label class="form-label">Tipo de cuenta</label><select class="form-control" name="transferencia_tipo_cuenta"><option value="">Seleccionar</option><option value="ahorros" @selected(old('transferencia_tipo_cuenta',$tienda->transferencia_tipo_cuenta)==='ahorros')>Ahorros</option><option value="corriente" @selected(old('transferencia_tipo_cuenta',$tienda->transferencia_tipo_cuenta)==='corriente')>Corriente</option></select></div>
+                <div class="form-group"><label class="form-label">Número de cuenta</label><input class="form-control" name="transferencia_numero_cuenta" value="{{ old('transferencia_numero_cuenta',$tienda->transferencia_numero_cuenta) }}" maxlength="60"></div>
+                <div class="form-group"><label class="form-label">Titular</label><input class="form-control" name="transferencia_titular" value="{{ old('transferencia_titular',$tienda->transferencia_titular) }}" maxlength="150"></div>
+                <div class="form-group"><label class="form-label">Identificación del titular</label><input class="form-control" name="transferencia_identificacion" value="{{ old('transferencia_identificacion',$tienda->transferencia_identificacion) }}" maxlength="30"></div>
+                <div class="form-group"><label class="form-label">Instrucciones adicionales</label><input class="form-control" name="transferencia_instrucciones" value="{{ old('transferencia_instrucciones',$tienda->transferencia_instrucciones) }}" maxlength="500"></div>
+            </div>
+        </fieldset>
+
         <div class="settings-reason">
             <label class="form-label" for="settings-reason">Motivo del cambio fiscal</label>
             <textarea id="settings-reason" name="motivo_cambio" class="form-control @error('motivo_cambio') is-invalid @enderror" maxlength="500" rows="3" placeholder="Obligatorio al cambiar moneda, impuesto o series">{{ old('motivo_cambio') }}</textarea>

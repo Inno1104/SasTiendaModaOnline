@@ -28,4 +28,14 @@ class PedidoOnlineDetalle extends Model
     {
         return $this->belongsTo(PedidoOnline::class, 'pedido_online_id');
     }
+
+    public function producto()
+    {
+        return $this->belongsTo(Producto::class);
+    }
+
+    public function variante()
+    {
+        return $this->belongsTo(ProductoVariante::class, 'variante_id');
+    }
 }

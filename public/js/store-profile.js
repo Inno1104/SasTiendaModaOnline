@@ -23,9 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
         remove.checked = false;
     });
 
-    remove.addEventListener('change', () => {
+    remove.addEventListener('change', async () => {
         if (!remove.checked) return;
-        if (!window.confirm('¿Eliminar el logo actual? La tienda usará la imagen predeterminada.')) {
+        if (!await window.appConfirm('¿Eliminar el logo actual? La tienda usará la imagen predeterminada.')) {
             remove.checked = false;
             return;
         }

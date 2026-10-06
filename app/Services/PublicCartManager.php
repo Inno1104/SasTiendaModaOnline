@@ -42,13 +42,13 @@ final class PublicCartManager
             $quantity = min($requestedQuantity, $availableStock, self::MAX_QUANTITY_PER_LINE);
             $adjusted = $adjusted || $quantity !== $requestedQuantity;
             $normalized[$variantId] = $quantity;
-            $unitPrice = round($variant->producto->precioActual(), 2);
+            $unitPrice = round($variant->precioActual(), 2);
             $items->push([
                 'variant_id' => (int) $variant->id,
                 'product_id' => (int) $variant->producto->id,
                 'code' => $variant->producto->codigo,
                 'name' => $variant->producto->nombre,
-                'image' => $variant->producto->imagen,
+                'image' => $this->imageForVariant($variant),
                 'size' => $variant->talla,
                 'color' => $variant->color,
                 'stock' => $availableStock,
@@ -109,6 +109,33 @@ final class PublicCartManager
         $this->persist($store, $session, $items);
     }
 
+    public function replace(Tienda $store, SessionStore $session, int $currentVariantId, int $newVariantId, int $quantity): void
+    {
+        $items = $this->storedItems($store, $session);
+        if (! array_key_exists($currentVariantId, $items)) {
+            throw ValidationException::withMessages([
+                'nueva_variante_id' => 'El producto que intentas actualizar ya no se encuentra en el carrito.',
+            ]);
+        }
+
+        $currentVariant = $this->variantForStore($store, $currentVariantId);
+        $newVariant = $this->variantForStore($store, $newVariantId);
+        if ((int) $currentVariant->producto_id !== (int) $newVariant->producto_id) {
+            throw ValidationException::withMessages([
+                'nueva_variante_id' => 'La nueva talla y color deben pertenecer al mismo producto.',
+            ]);
+        }
+
+        $newQuantity = $currentVariantId === $newVariantId
+            ? $quantity
+            : ($items[$newVariantId] ?? 0) + $quantity;
+        $this->ensureQuantityIsAvailable($newVariant, $newQuantity);
+
+        unset($items[$currentVariantId]);
+        $items[$newVariantId] = $newQuantity;
+        $this->persist($store, $session, $items);
+    }
+
     public function clear(Tienda $store, SessionStore $session): void
     {
         $session->forget($this->sessionKey($store));
@@ -130,7 +157,7 @@ final class PublicCartManager
     private function availableVariants(Tienda $store, array $variantIds): Collection
     {
         return ProductoVariante::withoutGlobalScopes()
-            ->select(['id', 'tienda_id', 'producto_id', 'talla', 'color', 'stock'])
+            ->select(['id', 'tienda_id', 'producto_id', 'talla', 'color', 'precio_venta', 'precio_oferta', 'stock'])
             ->withSum(['reservas as stock_reservado' => fn ($reservations) => $reservations
                 ->withoutGlobalScopes()
                 ->where('estado', StockReserva::ACTIVE)
@@ -145,10 +172,30 @@ final class PublicCartManager
                     ->withoutGlobalScopes()
                     ->where('tienda_id', $store->id)
                     ->where('activo', true)))
-            ->with(['producto' => fn ($products) => $products
-                ->withoutGlobalScopes()
-                ->select(['id', 'tienda_id', 'categoria_id', 'codigo', 'nombre', 'precio_venta', 'precio_oferta', 'imagen'])])
+            ->with([
+                'producto' => fn ($products) => $products
+                    ->withoutGlobalScopes()
+                    ->select(['id', 'tienda_id', 'categoria_id', 'codigo', 'nombre', 'precio_venta', 'precio_oferta', 'imagen']),
+                'producto.imagenes' => fn ($images) => $images
+                    ->withoutGlobalScopes()
+                    ->select(['id', 'tienda_id', 'producto_id', 'ruta', 'talla', 'color', 'orden', 'principal'])
+                    ->orderByDesc('principal')
+                    ->orderBy('orden'),
+            ])
             ->get();
+    }
+
+    private function imageForVariant(ProductoVariante $variant): ?string
+    {
+        $images = $variant->producto->imagenes;
+        $same = static fn (?string $left, ?string $right): bool => mb_strtolower(trim((string) $left)) === mb_strtolower(trim((string) $right));
+
+        $image = $images->first(fn ($item) => $same($item->color, $variant->color) && $same($item->talla, $variant->talla))
+            ?? $images->first(fn ($item) => $same($item->color, $variant->color) && blank($item->talla))
+            ?? $images->first(fn ($item) => $same($item->color, $variant->color))
+            ?? $images->first(fn ($item) => blank($item->color) && blank($item->talla));
+
+        return $image?->ruta ?? $variant->producto->imagen;
     }
 
     private function ensureQuantityIsAvailable(ProductoVariante $variant, int $quantity): void

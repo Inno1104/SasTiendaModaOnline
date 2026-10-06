@@ -2,13 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const node = document.getElementById('salesReportChartData');
     if (!node || typeof Chart === 'undefined') return;
     const data = JSON.parse(node.textContent);
-    const colors = ['#e72d86', '#7651e5', '#2f80ed', '#18b9bd', '#f58a2a', '#11a96f'];
+    const chartTheme = window.AdminChartTheme;
+    const colors = chartTheme.palette(Math.max(data.payments.labels.length, 6));
     const money = (value) => `${data.symbol} ${Number(value).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const daily = document.getElementById('salesDailyChart');
     if (daily) new Chart(daily, {
         type: 'line',
-        data: { labels: data.daily.labels, datasets: [{ data: data.daily.values, borderColor: '#e72d86', backgroundColor: 'rgba(231,45,134,.10)', fill: true, tension: .36, pointRadius: 3, pointBackgroundColor: '#e72d86' }] },
+        data: { labels: data.daily.labels, datasets: [{ data: data.daily.values, borderColor: chartTheme.accent, backgroundColor: chartTheme.fill(.10), fill: true, tension: .36, pointRadius: 3, pointBackgroundColor: chartTheme.accent }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => money(context.raw) } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { callback: money }, grid: { color: '#edf0f5' } } } }
     });
 

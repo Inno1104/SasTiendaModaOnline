@@ -41,7 +41,7 @@ final class OnlineOrderController extends Controller
         $checkout->clear($store, $request->session());
         $checkout->rotateOrderOperation($store, $request->session());
 
-        return redirect($store->publicUrl().'#pedido-confirmado')->with('online_order', [
+        return redirect()->route('storefront.transfer.show', ['slug' => $store->slug, 'operation' => $order->operacion_id])->with('online_order', [
             'numero' => $order->numero,
             'estado' => OnlineOrderStatus::label($order->estado),
             'total' => $order->simbolo_moneda.' '.number_format((float) $order->total, 2),

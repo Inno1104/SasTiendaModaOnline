@@ -18,6 +18,9 @@ class Tienda extends Model
         'logo', 'plan_id', 'estado', 'fecha_inicio', 'fecha_vencimiento',
         'igv', 'precios_incluyen_igv', 'moneda', 'simbolo_moneda', 'serie_boleta', 'serie_factura', 'serie_ticket',
         'configuracion_version',
+        'transferencia_activa', 'transferencia_banco', 'transferencia_tipo_cuenta',
+        'transferencia_numero_cuenta', 'transferencia_titular',
+        'transferencia_identificacion', 'transferencia_instrucciones',
     ];
 
     protected $casts = [
@@ -30,6 +33,7 @@ class Tienda extends Model
         'horarios' => 'array',
         'condiciones_venta' => 'array',
         'configuracion_version' => 'integer',
+        'transferencia_activa' => 'boolean',
     ];
 
     public function plan()

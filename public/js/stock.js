@@ -50,11 +50,6 @@
                 return;
             }
             if (!form.checkValidity()) return;
-            if (!window.confirm(form.dataset.confirmMessage)) {
-                event.preventDefault();
-                return;
-            }
-
             form.dataset.submitting = 'true';
             form.setAttribute('aria-busy', 'true');
             const button = form.querySelector('[data-submit-button], button[type="submit"], button:not([type])');

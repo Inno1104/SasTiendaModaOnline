@@ -95,7 +95,7 @@ class VentaController extends Controller
 
     public function receipt(SaleReceiptRequest $request, Venta $venta)
     {
-        $venta->load('tienda', 'cliente', 'vendedor', 'detalles.producto', 'pagos', 'anuladaPor', 'devueltaPor', 'reversiones.responsable');
+        $venta->load('tienda', 'cliente', 'vendedor', 'detalles.producto', 'pagos', 'pedidoOnline', 'anuladaPor', 'devueltaPor', 'reversiones.responsable');
         $format = $request->string('format')->toString() === 'ticket' ? 'ticket' : 'a4';
         $html = view('ventas.receipt', compact('venta', 'format'))->render();
 

@@ -89,7 +89,8 @@ class VentaCreator
                     ]);
                 }
 
-                $unitPrice = round($product->precioActual(), 2);
+                $variant->setRelation('producto', $product);
+                $unitPrice = round($variant->precioActual(), 2);
 
                 return [
                     'product' => $product,

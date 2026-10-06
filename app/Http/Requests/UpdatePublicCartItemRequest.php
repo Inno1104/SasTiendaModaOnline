@@ -16,6 +16,7 @@ final class UpdatePublicCartItemRequest extends FormRequest
     {
         return [
             'cantidad' => ['required', 'integer', 'min:1', 'max:'.PublicCartManager::MAX_QUANTITY_PER_LINE],
+            'nueva_variante_id' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -26,6 +27,7 @@ final class UpdatePublicCartItemRequest extends FormRequest
             'cantidad.integer' => 'La cantidad debe ser un número entero.',
             'cantidad.min' => 'La cantidad mínima es 1.',
             'cantidad.max' => 'La cantidad solicitada excede el límite permitido.',
+            'nueva_variante_id.integer' => 'Selecciona una talla y color válidos.',
         ];
     }
 }

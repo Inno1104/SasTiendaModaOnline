@@ -91,7 +91,7 @@ final class GuestCheckoutManager
     private function emptySnapshot(Tienda $store): array
     {
         return [
-            'cliente' => ['nombre' => null, 'apellido' => null, 'email' => null, 'telefono' => null],
+            'cliente' => ['nombre' => null, 'apellido' => null, 'dni' => null, 'email' => null, 'telefono' => null],
             'entrega' => [
                 'pais_codigo' => $store->pais_codigo ?: 'EC',
                 'provincia' => null,
@@ -102,6 +102,8 @@ final class GuestCheckoutManager
             ],
             'fiscal' => [
                 'requiere_factura' => false,
+                'tipo_comprobante' => 'boleta',
+                'usar_datos_contacto' => true,
                 'tipo_identificacion' => null,
                 'identificacion' => null,
                 'razon_social' => null,

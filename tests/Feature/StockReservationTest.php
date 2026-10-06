@@ -14,9 +14,9 @@ use App\Services\PublicCartManager;
 use App\Support\OnlineOrderStatus;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -40,7 +40,7 @@ class StockReservationTest extends TestCase
 
         $order = $this->createUsingServices($store);
 
-        $this->assertSame(OnlineOrderStatus::AWAITING_PAYMENT, $order->estado);
+        $this->assertSame(OnlineOrderStatus::PENDING, $order->estado);
         $this->assertNotNull($order->reserva_expira_at);
         $this->assertGreaterThanOrEqual(14, now()->diffInMinutes($order->reserva_expira_at));
         $this->assertSame([2, 3], $order->reservas->sortBy('variante_id')->pluck('cantidad')->values()->all());
@@ -133,7 +133,7 @@ class StockReservationTest extends TestCase
             Carbon::setTestNow('2026-09-01 10:14:59');
             $this->artisan('reservas:liberar-vencidas')->expectsOutput('Reservas liberadas: 0')->assertSuccessful();
             $this->assertSame(StockReserva::ACTIVE, StockReserva::withoutGlobalScopes()->sole()->estado);
-            $this->assertSame(OnlineOrderStatus::AWAITING_PAYMENT, $order->fresh()->estado);
+            $this->assertSame(OnlineOrderStatus::PENDING, $order->fresh()->estado);
             $this->assertSame(2, $variant->fresh()->stockDisponibleVenta());
         } finally {
             Carbon::setTestNow();
@@ -219,7 +219,7 @@ class StockReservationTest extends TestCase
             ])->assertSessionHasNoErrors();
         }
         $this->post(route('storefront.checkout.data.store', $store->slug), [
-            'cliente' => ['nombre' => 'Ana', 'apellido' => 'Paredes', 'email' => 'ana@example.com', 'telefono' => '+593991234567'],
+            'cliente' => ['nombre' => 'Ana', 'apellido' => 'Paredes', 'dni' => '1712345678', 'email' => 'ana@example.com', 'telefono' => '+593991234567'],
             'entrega' => ['pais_codigo' => 'EC', 'provincia' => 'Pichincha', 'ciudad' => 'Quito', 'codigo_postal' => null, 'direccion' => 'Av. Central 123', 'referencia' => null],
             'fiscal' => ['requiere_factura' => '0', 'tipo_identificacion' => null, 'identificacion' => null, 'razon_social' => null, 'direccion_fiscal' => null],
             'acepta_privacidad' => '1',

@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Models\PedidoOnline;
 use App\Models\ProductoVariante;
+use App\Models\StockMovimiento;
 use App\Models\StockReserva;
+use App\Models\User;
 use App\Support\OnlineOrderStatus;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,9 +19,11 @@ final class StockReservationManager
 {
     public const RESERVATION_MINUTES = 15;
 
+    public function __construct(private readonly InventoryMovementService $stockMovements) {}
+
     /**
-     * @param Collection<int,ProductoVariante> $lockedVariants
-     * @param Collection<int,array<string,mixed>> $lines
+     * @param  Collection<int,ProductoVariante>  $lockedVariants
+     * @param  Collection<int,array<string,mixed>>  $lines
      */
     public function reserve(PedidoOnline $order, Collection $lockedVariants, Collection $lines, CarbonInterface $expiresAt): void
     {
@@ -98,6 +103,66 @@ final class StockReservationManager
         }
 
         return $released;
+    }
+
+    public function consume(PedidoOnline $order, ?User $user = null, ?Model $reference = null): void
+    {
+        $this->ensureTransaction();
+        $reservations = StockReserva::withoutGlobalScopes()->where('pedido_online_id', $order->id)
+            ->where('estado', StockReserva::ACTIVE)->orderBy('variante_id')->lockForUpdate()->get();
+        if ($reservations->isEmpty()) {
+            throw ValidationException::withMessages(['pago' => 'La reserva del pedido ya no está disponible.']);
+        }
+        foreach ($reservations as $reservation) {
+            $variant = ProductoVariante::withoutGlobalScopes()->whereKey($reservation->variante_id)->lockForUpdate()->firstOrFail();
+            if ($variant->stock < $reservation->cantidad) {
+                throw ValidationException::withMessages(['pago' => 'El inventario físico ya no permite confirmar este pago.']);
+            }
+            $this->stockMovements->setStock(
+                $variant,
+                (int) $variant->stock - $reservation->cantidad,
+                StockMovimiento::TIPO_VENTA,
+                $user,
+                $reference ?? $order,
+                'Salida por pedido online '.$order->numero,
+            );
+            $reservation->forceFill(['estado' => StockReserva::CONSUMED, 'consumida_at' => now()])->save();
+        }
+    }
+
+    public function cancel(PedidoOnline $order, CarbonInterface $cancelledAt): void
+    {
+        $this->ensureTransaction();
+        $reservations = StockReserva::withoutGlobalScopes()
+            ->where('pedido_online_id', $order->id)
+            ->whereIn('estado', [StockReserva::ACTIVE, StockReserva::CONSUMED])
+            ->orderBy('variante_id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($reservations as $reservation) {
+            if ($reservation->estado === StockReserva::ACTIVE) {
+                $reservation->forceFill([
+                    'estado' => StockReserva::RELEASED,
+                    'liberada_at' => $cancelledAt,
+                    'motivo_liberacion' => 'Pedido cancelado por la tienda',
+                ])->save();
+
+                continue;
+            }
+
+            $variant = ProductoVariante::withoutGlobalScopes()
+                ->where('tienda_id', $order->tienda_id)
+                ->whereKey($reservation->variante_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            if ($variant->stock > ProductoVariante::MAX_STOCK - $reservation->cantidad) {
+                throw ValidationException::withMessages([
+                    'pedido' => 'No se puede reponer el inventario porque superaría el límite permitido.',
+                ]);
+            }
+            $variant->increment('stock', $reservation->cantidad);
+        }
     }
 
     private function ensureTransaction(): void

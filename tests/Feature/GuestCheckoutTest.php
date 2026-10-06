@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Categoria;
+use App\Models\Cliente;
+use App\Models\PedidoOnline;
 use App\Models\Producto;
 use App\Models\ProductoVariante;
+use App\Models\StockReserva;
 use App\Models\Tienda;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -14,6 +17,34 @@ use Tests\TestCase;
 class GuestCheckoutTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_confirming_contact_data_creates_order_and_redirects_directly_to_payment(): void
+    {
+        [$store, $variant] = $this->context('confirmacion-directa');
+        $this->addToCart($store, $variant);
+        $payload = $this->validPayload();
+        $payload['confirmar_pedido'] = '1';
+
+        $response = $this->post(route('storefront.checkout.data.store', $store->slug), $payload);
+
+        $order = PedidoOnline::withoutGlobalScopes()->sole();
+        $response->assertRedirect(route('storefront.transfer.show', [
+            'slug' => $store->slug,
+            'operation' => $order->operacion_id,
+        ]))->assertSessionHas('online_order');
+
+        $this->assertSame('pendiente', $order->estado);
+        $this->assertSame('boleta', $order->tipo_comprobante);
+        $this->assertSame('invitada@example.com', $order->cliente_email);
+        $this->assertDatabaseHas('pedido_online_detalles', [
+            'pedido_online_id' => $order->id,
+            'variante_id' => $variant->id,
+            'cantidad' => 2,
+        ]);
+        $this->assertSame(StockReserva::ACTIVE, StockReserva::withoutGlobalScopes()->sole()->estado);
+        $this->assertNull(session('public_cart_store_'.$store->id));
+        $this->assertNull(session('guest_checkout_store_'.$store->id));
+    }
 
     public function test_guest_contact_delivery_and_fiscal_data_are_normalized_and_encrypted(): void
     {
@@ -45,15 +76,18 @@ class GuestCheckoutTest extends TestCase
 
         $stored = json_decode(Crypt::decryptString($encrypted), true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame('Ana María', $stored['cliente']['nombre']);
+        $this->assertSame('1712345678', $stored['cliente']['dni']);
         $this->assertSame('ana@example.com', $stored['cliente']['email']);
         $this->assertSame('+593991234567', $stored['cliente']['telefono']);
         $this->assertSame('Av. Central 123', $stored['entrega']['direccion']);
         $this->assertSame('179001234-5', $stored['fiscal']['identificacion']);
         $this->assertSame('Comercial Andina', $stored['fiscal']['razon_social']);
+        $this->assertSame('factura', $stored['fiscal']['tipo_comprobante']);
+        $this->assertFalse($stored['fiscal']['usar_datos_contacto']);
         $this->assertArrayNotHasKey('acepta_privacidad', $stored);
     }
 
-    public function test_guest_can_buy_without_invoice_and_fiscal_values_are_discarded(): void
+    public function test_note_uses_contact_and_delivery_data_by_default(): void
     {
         [$store, $variant] = $this->context('sin-factura');
         $this->addToCart($store, $variant);
@@ -75,8 +109,40 @@ class GuestCheckoutTest extends TestCase
             flags: JSON_THROW_ON_ERROR,
         );
         $this->assertFalse($stored['fiscal']['requiere_factura']);
-        $this->assertNull($stored['fiscal']['identificacion']);
-        $this->assertNull($stored['fiscal']['razon_social']);
+        $this->assertSame('boleta', $stored['fiscal']['tipo_comprobante']);
+        $this->assertTrue($stored['fiscal']['usar_datos_contacto']);
+        $this->assertSame('1712345678', $stored['fiscal']['identificacion']);
+        $this->assertSame('Ana Paredes', $stored['fiscal']['razon_social']);
+        $this->assertSame('Av. Central 123', $stored['fiscal']['direccion_fiscal']);
+    }
+
+    public function test_ticket_can_use_different_billing_data(): void
+    {
+        [$store, $variant] = $this->context('ticket-otros-datos');
+        $this->addToCart($store, $variant);
+        $payload = $this->validPayload();
+        $payload['fiscal'] = [
+            'tipo_comprobante' => 'ticket',
+            'usar_datos_contacto' => '0',
+            'tipo_identificacion' => 'pasaporte',
+            'identificacion' => 'PAS-12345',
+            'razon_social' => 'Otra Persona',
+            'direccion_fiscal' => 'Calle Secundaria 45',
+        ];
+
+        $this->post(route('storefront.checkout.data.store', $store->slug), $payload)
+            ->assertSessionHasNoErrors();
+
+        $stored = json_decode(
+            Crypt::decryptString(session('guest_checkout_store_'.$store->id)),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $this->assertSame('ticket', $stored['fiscal']['tipo_comprobante']);
+        $this->assertFalse($stored['fiscal']['requiere_factura']);
+        $this->assertFalse($stored['fiscal']['usar_datos_contacto']);
+        $this->assertSame('PAS-12345', $stored['fiscal']['identificacion']);
+        $this->assertSame('Otra Persona', $stored['fiscal']['razon_social']);
     }
 
     public function test_invoice_requires_complete_and_valid_fiscal_identification(): void
@@ -109,6 +175,7 @@ class GuestCheckoutTest extends TestCase
         $this->addToCart($store, $variant);
         $payload = $this->validPayload();
         $payload['cliente']['nombre'] = '<script>';
+        $payload['cliente']['dni'] = '***';
         $payload['cliente']['email'] = 'correo-invalido';
         $payload['cliente']['telefono'] = '12';
         $payload['entrega']['pais_codigo'] = 'XX';
@@ -117,7 +184,7 @@ class GuestCheckoutTest extends TestCase
 
         $this->post(route('storefront.checkout.data.store', $store->slug), $payload)
             ->assertSessionHasErrors([
-                'cliente.nombre', 'cliente.email', 'cliente.telefono',
+                'cliente.nombre', 'cliente.dni', 'cliente.email', 'cliente.telefono',
                 'entrega.pais_codigo', 'entrega.direccion', 'acepta_privacidad',
             ]);
     }
@@ -132,10 +199,38 @@ class GuestCheckoutTest extends TestCase
         $this->post(route('storefront.checkout.data.store', $firstStore->slug), $this->validPayload())
             ->assertSessionHasNoErrors();
 
-        $this->get($firstStore->publicUrl())->assertSee('invitada@example.com');
-        $this->get($secondStore->publicUrl())->assertDontSee('invitada@example.com');
+        $this->get(route('storefront.cart.show', $firstStore->slug))->assertSee('invitada@example.com');
+        $this->get(route('storefront.cart.show', $secondStore->slug))->assertDontSee('invitada@example.com');
         $this->assertNotNull(session('guest_checkout_store_'.$firstStore->id));
         $this->assertNull(session('guest_checkout_store_'.$secondStore->id));
+    }
+
+    public function test_customer_data_can_be_completed_by_dni_only_inside_the_requested_store(): void
+    {
+        [$store] = $this->context('buscar-dni');
+        [$otherStore] = $this->context('buscar-dni-ajena');
+        Cliente::withoutGlobalScopes()->create([
+            'tienda_id' => $store->id,
+            'codigo' => 'CLI-DNI-1',
+            'nombre' => 'Freddy',
+            'apellido' => 'Quilca',
+            'dni' => '1712345678',
+            'email' => 'freddy@example.com',
+            'telefono' => '+593968515652',
+            'direccion' => 'Av. 10 de Agosto',
+            'ciudad' => 'Quito',
+            'activo' => true,
+        ]);
+
+        $this->postJson(route('storefront.customers.lookup', $store->slug), ['dni' => ' 1712 345678 '])
+            ->assertOk()
+            ->assertJsonPath('found', true)
+            ->assertJsonPath('customer.nombre', 'Freddy')
+            ->assertJsonPath('customer.ciudad', 'Quito');
+
+        $this->postJson(route('storefront.customers.lookup', $otherStore->slug), ['dni' => '1712345678'])
+            ->assertOk()
+            ->assertExactJson(['found' => false]);
     }
 
     public function test_checkout_requires_a_valid_cart_and_a_published_store(): void
@@ -158,7 +253,7 @@ class GuestCheckoutTest extends TestCase
         $this->addToCart($store, $variant);
 
         $this->withSession(['guest_checkout_store_'.$store->id => 'contenido-alterado'])
-            ->get($store->publicUrl())
+            ->get(route('storefront.cart.show', $store->slug))
             ->assertOk()
             ->assertSee('Compra como invitado');
 
@@ -220,6 +315,7 @@ class GuestCheckoutTest extends TestCase
             'cliente' => [
                 'nombre' => 'Ana',
                 'apellido' => 'Paredes',
+                'dni' => '1712345678',
                 'email' => 'invitada@example.com',
                 'telefono' => '+593991234567',
             ],

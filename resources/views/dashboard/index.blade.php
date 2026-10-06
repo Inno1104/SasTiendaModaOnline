@@ -65,7 +65,7 @@
         <div class="chart-box sm"><canvas id="categoriaChart"></canvas></div>
         <div class="category-legend">
             @foreach($ventasPorCategoria as $i => $vc)
-                <div class="category-legend-row"><span class="category-dot" style="--category-color:{{ ['#e8398c','#7c3aed','#2563eb','#16a34a','#ea580c'][$i] ?? '#ccc' }}"></span><span class="category-name">{{ $vc->nombre }}</span><strong>{{ $simboloMoneda }} {{ number_format($vc->total, 0) }}</strong></div>
+                <div class="category-legend-row" data-category-legend="{{ $i }}"><span class="category-dot"></span><span class="category-name">{{ $vc->nombre }}</span><strong>{{ $simboloMoneda }} {{ number_format($vc->total, 0) }}</strong></div>
             @endforeach
         </div>
     </section>
@@ -103,10 +103,18 @@ const labels = @json($labels);
 const data = @json($data);
 const chartFont = { family: 'Poppins', size: 11 };
 const gridColor = '#f0f0f5';
+const chartTheme = window.AdminChartTheme;
+const accentColor = chartTheme.accent;
+const categoryColors = chartTheme.palette(Math.max(@json($ventasPorCategoria->count()), 5));
+
+document.querySelectorAll('[data-category-legend]').forEach((item) => {
+    const index = Number(item.dataset.categoryLegend || 0);
+    item.querySelector('.category-dot')?.style.setProperty('--category-color', categoryColors[index]);
+});
 
 new Chart(document.getElementById('ventasChart'), {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Ventas ({{ $simboloMoneda }})', data, borderColor: '#e8398c', backgroundColor: 'rgba(232,57,140,.08)', borderWidth: 2.5, pointBackgroundColor: '#e8398c', pointRadius: 5, tension: .4, fill: true }] },
+    data: { labels, datasets: [{ label: 'Ventas ({{ $simboloMoneda }})', data, borderColor: accentColor, backgroundColor: chartTheme.fill(.09), borderWidth: 2.5, pointBackgroundColor: accentColor, pointRadius: 5, tension: .4, fill: true }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { font: chartFont } }, x: { grid: { display: false }, ticks: { font: chartFont } } } }
 });
 
@@ -114,7 +122,7 @@ const catLabels = @json($ventasPorCategoria->pluck('nombre'));
 const catData = @json($ventasPorCategoria->pluck('total'));
 new Chart(document.getElementById('categoriaChart'), {
     type: 'doughnut',
-    data: { labels: catLabels.length ? catLabels : ['Sin datos'], datasets: [{ data: catData.length ? catData : [1], backgroundColor: ['#e8398c','#7c3aed','#2563eb','#16a34a','#ea580c'], borderWidth: 0 }] },
+    data: { labels: catLabels.length ? catLabels : ['Sin datos'], datasets: [{ data: catData.length ? catData : [1], backgroundColor: catData.length ? categoryColors : ['#dfe3eb'], borderWidth: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } }
 });
 
@@ -122,15 +130,16 @@ const stockLabels = @json($stockCatLabels);
 const stockData = @json($stockCatData);
 new Chart(document.getElementById('stockChart'), {
     type: 'bar',
-    data: { labels: stockLabels.length ? stockLabels : ['Sin datos'], datasets: [{ label: 'Unidades en stock', data: stockData.length ? stockData : [0], backgroundColor: 'rgba(225,7,91,.88)', hoverBackgroundColor: '#c9004d', borderRadius: 6, maxBarThickness: 38 }] },
+    data: { labels: stockLabels.length ? stockLabels : ['Sin datos'], datasets: [{ label: 'Unidades en stock', data: stockData.length ? stockData : [0], backgroundColor: chartTheme.fill(.88), hoverBackgroundColor: accentColor, borderRadius: 6, maxBarThickness: 38 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { font: chartFont } }, x: { grid: { display: false }, ticks: { font: { family: 'Poppins', size: 10 } } } } }
 });
 
 const metodoLabels = @json($metodoLabels);
 const metodoData = @json($metodoData);
+const paymentColors = chartTheme.palette(Math.max(metodoLabels.length, 5));
 new Chart(document.getElementById('metodoChart'), {
     type: 'bar',
-    data: { labels: metodoLabels.length ? metodoLabels : ['Sin datos'], datasets: [{ label: 'Total ({{ $simboloMoneda }})', data: metodoData.length ? metodoData : [0], backgroundColor: ['#e8398c','#7c3aed','#2563eb','#16a34a','#ea580c'], borderRadius: 6, maxBarThickness: 26 }] },
+    data: { labels: metodoLabels.length ? metodoLabels : ['Sin datos'], datasets: [{ label: 'Total ({{ $simboloMoneda }})', data: metodoData.length ? metodoData : [0], backgroundColor: metodoData.length ? paymentColors : ['#dfe3eb'], borderRadius: 6, maxBarThickness: 26 }] },
     options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: gridColor }, ticks: { font: chartFont } }, y: { grid: { display: false }, ticks: { font: { family: 'Poppins', size: 12 } } } } }
 });
 </script>

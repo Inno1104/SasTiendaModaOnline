@@ -136,7 +136,7 @@ class ProductoSecurityTest extends TestCase
         $this->actingAs($administrator)
             ->post(route('productos.store'), $this->validPayload($category, [
                 'variantes' => [
-                    ['talla' => 'S', 'color' => 'Azul', 'codigo_barra' => 'BAR-1', 'stock' => 8, 'stock_minimo' => 2],
+                    ['talla' => 'S', 'detalle_talla' => 'Pecho 84-88 cm; cintura 70-74 cm', 'color' => 'Azul', 'codigo_barra' => 'BAR-1', 'stock' => 8, 'stock_minimo' => 2],
                     ['talla' => 'M', 'color' => 'Azul', 'codigo_barra' => '', 'stock' => 6, 'stock_minimo' => 2],
                 ],
             ]))
@@ -146,6 +146,7 @@ class ProductoSecurityTest extends TestCase
         $this->assertCount(2, $product->variantes);
         $this->assertTrue($product->variantes->every(fn ($variant) => $variant->tienda_id === $store->id));
         $this->assertDatabaseHas('producto_variantes', ['producto_id' => $product->id, 'codigo_barra' => 'BAR-1']);
+        $this->assertDatabaseHas('producto_variantes', ['producto_id' => $product->id, 'talla' => 'S', 'detalle_talla' => 'Pecho 84-88 cm; cintura 70-74 cm']);
         $movements = StockMovimiento::query()->orderBy('id')->get();
         $this->assertCount(2, $movements);
         $this->assertTrue($movements->every(fn ($movement) => $movement->tipo === StockMovimiento::TIPO_ENTRADA));
